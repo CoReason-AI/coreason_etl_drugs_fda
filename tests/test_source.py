@@ -15,7 +15,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from coreason_etl_drugs_fda.source import drugs_fda_source
+from coreason_etl_drugs_fda.source import _extract_approval_dates, _read_file_from_zip, drugs_fda_source
 
 
 @pytest.fixture  # type: ignore[misc]
@@ -82,9 +82,7 @@ def test_drugs_fda_source_extraction(mock_zip_content: bytes) -> None:
         assert row1["product_no"] == "004"
         # Check Date Join
         assert row1["original_approval_date"] == date(1982, 1, 1)
-        # Check Historic Record Logic (Since date was 1982-01-01, but not the legacy string, flag should be false?
-        # Wait, the test data says "1982-01-01". The legacy string is "Approved prior to Jan 1, 1982".
-        # So is_historic_record should be False here.
+        # Check Historic Record Logic
         assert not row1["is_historic_record"]
         # Check Active Ingredient List
         assert row1["active_ingredient"] == ["HYDROXYAMPHETAMINE HYDROBROMIDE"]
@@ -100,10 +98,6 @@ def test_drugs_fda_source_extraction(mock_zip_content: bytes) -> None:
 
 def test_silver_products_legacy_date(mock_zip_content: bytes) -> None:
     """Test legacy date string handling in silver_products."""
-    # Modify mock to include legacy string
-    import io
-    import zipfile
-
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w") as z:
         products = "ApplNo\tProductNo\tActiveIngredient\n000007\t001\tIng"
@@ -126,3 +120,60 @@ def test_silver_products_legacy_date(mock_zip_content: bytes) -> None:
 
         assert row["original_approval_date"] == date(1982, 1, 1)
         assert row["is_historic_record"] is True
+
+
+def test_read_file_from_zip_missing() -> None:
+    """Test _read_file_from_zip with non-existent file."""
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as z:
+        z.writestr("exists.txt", "col\nval")
+
+    # This generator should yield nothing
+    gen = _read_file_from_zip(buffer.getvalue(), "missing.txt")
+    assert list(gen) == []
+
+
+def test_extract_approval_dates_missing_file() -> None:
+    """Test _extract_approval_dates when Submissions.txt is missing."""
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as z:
+        z.writestr("Products.txt", "col\nval")
+
+    dates = _extract_approval_dates(buffer.getvalue())
+    assert dates == {}
+
+
+def test_extract_approval_dates_missing_columns() -> None:
+    """Test _extract_approval_dates with malformed Submissions.txt."""
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as z:
+        # Missing SubmissionType or SubmissionStatusDate
+        z.writestr("Submissions.txt", "ApplNo\tWrongCol\n123\tval")
+
+    dates = _extract_approval_dates(buffer.getvalue())
+    assert dates == {}
+
+
+def test_silver_products_empty_dates() -> None:
+    """Test silver_products_resource when no approval dates are found (empty dates_df)."""
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as z:
+        products = "ApplNo\tProductNo\tActiveIngredient\n000008\t001\tIng"
+        z.writestr("Products.txt", products)
+        # Submissions has no ORIG
+        submissions = "ApplNo\tSubmissionType\tSubmissionStatusDate\n000008\tSUPPL\t2023-01-01"
+        z.writestr("Submissions.txt", submissions)
+    buffer.seek(0)
+    mock_content = buffer.getvalue()
+
+    with patch("requests.get") as mock_get:
+        mock_response = MagicMock()
+        mock_response.content = mock_content
+        mock_response.raise_for_status.return_value = None
+        mock_get.return_value = mock_response
+
+        source = drugs_fda_source()
+        # Should yield silver products, but with null dates
+        silver_prod = list(source.resources["silver_products"])
+        assert len(silver_prod) == 1
+        assert silver_prod[0]["original_approval_date"] is None
