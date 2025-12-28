@@ -11,14 +11,13 @@
 import io
 import re
 import zipfile
+from datetime import date
 from typing import Any, Dict, Iterator, List
 
 import dlt
 import polars as pl
 import requests  # type: ignore[import-untyped]
 from dlt.sources import DltResource
-
-from datetime import date
 
 from coreason_etl_drugs_fda.gold import ProductGold
 from coreason_etl_drugs_fda.silver import ProductSilver, generate_coreason_id, generate_row_hash
@@ -217,11 +216,11 @@ def drugs_fda_source(base_url: str = "https://www.fda.gov/media/89850/download")
 
     # 3. Yield Gold Products Resource
     # Depends on Products, Applications, MarketingStatus, TE, Exclusivity (optional?), Submissions
-    required_gold = {"Products.txt", "Submissions.txt", "Applications.txt", "MarketingStatus.txt", "TE.txt", "Exclusivity.txt"}
     # Check if we have minimal files (Products+Submissions is baseline Silver, plus Applications etc.)
     # If some auxiliary files missing, we can still produce Gold with nulls?
     # BRD says "Left Join", so yes.
     if "Products.txt" in files_present:
+
         @dlt.resource(name="dim_drug_product", write_disposition="replace")  # type: ignore[misc]
         def gold_products_resource(z_content: bytes = zip_bytes) -> Iterator[ProductGold]:
             # Get Base Silver Data
@@ -273,14 +272,20 @@ def drugs_fda_source(base_url: str = "https://www.fda.gov/media/89850/download")
                 cols = ["appl_no", "sponsor_name"]
                 if "appl_type" in df_apps.columns:
                     cols.append("appl_type")
-                df_apps_sub = df_apps.select(cols).unique(subset=["appl_no"]) # Ensure 1:1 or handle dupes? Applications are 1 per ApplNo usually?
+                df_apps_sub = df_apps.select(cols).unique(
+                    subset=["appl_no"]
+                )  # Ensure 1:1 or handle dupes? Applications are 1 per ApplNo usually?
                 silver_df = silver_df.join(df_apps_sub, on="appl_no", how="left")
             else:
-                silver_df = silver_df.with_columns([pl.lit(None).alias("sponsor_name"), pl.lit(None).alias("appl_type")])
+                silver_df = silver_df.with_columns(
+                    [pl.lit(None).alias("sponsor_name"), pl.lit(None).alias("appl_type")]
+                )
 
             # 2. Join MarketingStatus (MarketingStatusID)
             if "marketing_status_id" in df_marketing.columns:
-                df_marketing_sub = df_marketing.select(["appl_no", "product_no", "marketing_status_id"]).unique(subset=["appl_no", "product_no"])
+                df_marketing_sub = df_marketing.select(["appl_no", "product_no", "marketing_status_id"]).unique(
+                    subset=["appl_no", "product_no"]
+                )
                 silver_df = silver_df.join(df_marketing_sub, on=["appl_no", "product_no"], how="left")
             else:
                 silver_df = silver_df.with_columns(pl.lit(None).alias("marketing_status_id"))
@@ -296,14 +301,12 @@ def drugs_fda_source(base_url: str = "https://www.fda.gov/media/89850/download")
             # Logic: True if current_date < Max(ExclusivityDate)
             # We need to aggregate Exclusivity by ApplNo+ProductNo first.
             if "exclusivity_date" in df_exclusivity.columns:
-                 # Convert to date
+                # Convert to date
                 df_exclusivity = fix_dates(df_exclusivity, ["exclusivity_date"])
 
                 # Group by and get max date
-                df_excl_agg = (
-                    df_exclusivity
-                    .group_by(["appl_no", "product_no"])
-                    .agg(pl.col("exclusivity_date").max().alias("max_exclusivity_date"))
+                df_excl_agg = df_exclusivity.group_by(["appl_no", "product_no"]).agg(
+                    pl.col("exclusivity_date").max().alias("max_exclusivity_date")
                 )
 
                 silver_df = silver_df.join(df_excl_agg, on=["appl_no", "product_no"], how="left")
@@ -315,10 +318,7 @@ def drugs_fda_source(base_url: str = "https://www.fda.gov/media/89850/download")
 
                 # If max_exclusivity_date > today -> True
                 silver_df = silver_df.with_columns(
-                    pl.when(pl.col("max_exclusivity_date") > today)
-                    .then(True)
-                    .otherwise(False)
-                    .alias("is_protected")
+                    pl.when(pl.col("max_exclusivity_date") > today).then(True).otherwise(False).alias("is_protected")
                 )
             else:
                 silver_df = silver_df.with_columns(pl.lit(False).alias("is_protected"))
@@ -327,11 +327,9 @@ def drugs_fda_source(base_url: str = "https://www.fda.gov/media/89850/download")
             # True if ApplType == 'A' (ANDA), False if ApplType == 'N' (NDA).
             # Note: ApplType column might be missing if apps join failed
             if "appl_type" in silver_df.columns:
-                 silver_df = silver_df.with_columns(
-                (pl.col("appl_type") == "A").fill_null(False).alias("is_generic")
-                )
+                silver_df = silver_df.with_columns((pl.col("appl_type") == "A").fill_null(False).alias("is_generic"))
             else:
-                 silver_df = silver_df.with_columns(pl.lit(False).alias("is_generic"))
+                silver_df = silver_df.with_columns(pl.lit(False).alias("is_generic"))
 
             # Fill Nones for optional fields that might be missing after join
             # Pydantic Optional handles None, but Polars might have Nulls.
@@ -339,7 +337,7 @@ def drugs_fda_source(base_url: str = "https://www.fda.gov/media/89850/download")
 
             # Cast marketing_status_id to int if possible (it's ID)
             if "marketing_status_id" in silver_df.columns:
-                 silver_df = silver_df.with_columns(pl.col("marketing_status_id").cast(pl.Int64, strict=False))
+                silver_df = silver_df.with_columns(pl.col("marketing_status_id").cast(pl.Int64, strict=False))
 
             for row in silver_df.to_dicts():
                 yield ProductGold(**row)

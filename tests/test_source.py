@@ -14,10 +14,14 @@ from datetime import date
 from unittest.mock import MagicMock, patch
 
 import pytest
+from coreason_etl_drugs_fda.source import (
+    _create_silver_dataframe,
+    _extract_approval_dates,
+    _read_file_from_zip,
+    drugs_fda_source,
+)
 from dlt.extract.exceptions import ResourceExtractionError
 from pydantic import ValidationError
-
-from coreason_etl_drugs_fda.source import _create_silver_dataframe, _extract_approval_dates, _read_file_from_zip, drugs_fda_source
 
 
 @pytest.fixture  # type: ignore[misc]
@@ -193,10 +197,7 @@ def test_silver_products_validation_error() -> None:
         # But wait, transform logic doesn't check for digits before padding.
         # "ABC" -> "000ABC" (if length 3).
         # Regex ^\d{6}$ will fail on "000ABC".
-        products = (
-            "ApplNo\tProductNo\tForm\tStrength\tActiveIngredient\n"
-            "ABC\t001\tForm\tStr\tIng"
-        )
+        products = "ApplNo\tProductNo\tForm\tStrength\tActiveIngredient\n" "ABC\t001\tForm\tStr\tIng"
         z.writestr("Products.txt", products)
         z.writestr("Submissions.txt", "ApplNo\tSubmissionType\tSubmissionStatusDate\nABC\tORIG\t2023-01-01")
 
@@ -277,17 +278,17 @@ def test_gold_products_logic() -> None:
         row1 = next(p for p in gold_prods if p.appl_no == "000001")
         assert row1.sponsor_name == "SponsorA"
         assert row1.is_generic is False  # ApplType N
-        assert row1.is_protected is True # Excl Date 3000 > Today
+        assert row1.is_protected is True  # Excl Date 3000 > Today
         assert row1.marketing_status_id == 1
-        assert row1.te_code is None # Missing in TE
+        assert row1.te_code is None  # Missing in TE
 
         # Row 2: ANDA, Not Protected, Has TE
         row2 = next(p for p in gold_prods if p.appl_no == "000002")
         assert row2.sponsor_name == "SponsorB"
-        assert row2.is_generic is True   # ApplType A
-        assert row2.is_protected is False # Excl Date 2000 < Today
+        assert row2.is_generic is True  # ApplType A
+        assert row2.is_protected is False  # Excl Date 2000 < Today
         assert row2.te_code == "AB"
-        assert row2.marketing_status_id is None # Missing in Marketing
+        assert row2.marketing_status_id is None  # Missing in Marketing
 
 
 def test_gold_products_missing_aux_files() -> None:
@@ -312,8 +313,8 @@ def test_gold_products_missing_aux_files() -> None:
         row = gold_prods[0]
 
         assert row.sponsor_name is None
-        assert row.is_generic is False # Default if missing
-        assert row.is_protected is False # Default if missing
+        assert row.is_generic is False  # Default if missing
+        assert row.is_protected is False  # Default if missing
         assert row.marketing_status_id is None
 
 
@@ -340,7 +341,7 @@ def test_gold_products_missing_appl_type_column() -> None:
         row = gold_prods[0]
 
         assert row.sponsor_name == "SponsorX"
-        assert row.is_generic is False # Default
+        assert row.is_generic is False  # Default
 
 
 def test_source_skips_silver_if_missing_files() -> None:
@@ -372,7 +373,7 @@ def test_source_skips_silver_if_missing_files() -> None:
 
         assert "raw_fda__products" in resources
         assert "silver_products" not in resources  # Should be skipped
-        assert "dim_drug_product" in resources     # Should be present (only depends on Products)
+        assert "dim_drug_product" in resources  # Should be present (only depends on Products)
 
     # Case 2: No Products -> Silver and Gold skipped
     buffer = io.BytesIO()

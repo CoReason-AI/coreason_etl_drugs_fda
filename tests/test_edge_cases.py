@@ -16,11 +16,10 @@ from unittest.mock import MagicMock, patch
 
 import polars as pl
 import pytest
-from pydantic import ValidationError
-
 from coreason_etl_drugs_fda.silver import ProductSilver, generate_coreason_id
 from coreason_etl_drugs_fda.source import drugs_fda_source
 from coreason_etl_drugs_fda.transform import clean_ingredients, fix_dates, normalize_ids
+from pydantic import ValidationError
 
 
 def test_malformed_tsv_ragged_lines() -> None:
@@ -324,7 +323,8 @@ def test_encoding_cp1252() -> None:
         # But Pydantic model DOES NOT have DrugName.
         # So DrugName will be ignored/dropped by ProductSilver unless we added it?
         # ProductSilver in silver.py:
-        # coreason_id, appl_no, product_no, form, strength, active_ingredient, original_approval_date, is_historic_record, hash_md5.
+        # coreason_id, appl_no, product_no, form, strength, active_ingredient, original_approval_date,
+        # is_historic_record, hash_md5.
         # It does NOT have DrugName.
         # So we can't assert row['drug_name'].
         # We can only assert active_ingredient decoding.
