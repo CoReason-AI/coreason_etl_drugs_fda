@@ -197,7 +197,7 @@ def test_silver_products_validation_error() -> None:
         # But wait, transform logic doesn't check for digits before padding.
         # "ABC" -> "000ABC" (if length 3).
         # Regex ^\d{6}$ will fail on "000ABC".
-        products = "ApplNo\tProductNo\tForm\tStrength\tActiveIngredient\n" "ABC\t001\tForm\tStr\tIng"
+        products = "ApplNo\tProductNo\tForm\tStrength\tActiveIngredient\nABC\t001\tForm\tStr\tIng"
         z.writestr("Products.txt", products)
         z.writestr("Submissions.txt", "ApplNo\tSubmissionType\tSubmissionStatusDate\nABC\tORIG\t2023-01-01")
 
@@ -228,9 +228,7 @@ def test_gold_products_logic() -> None:
         # 000001: NDA, Protected
         # 000002: ANDA, Not Protected
         products = (
-            "ApplNo\tProductNo\tForm\tStrength\tActiveIngredient\n"
-            "000001\t001\tF\tS\tIng1\n"
-            "000002\t001\tF\tS\tIng2"
+            "ApplNo\tProductNo\tForm\tStrength\tActiveIngredient\n000001\t001\tF\tS\tIng1\n000002\t001\tF\tS\tIng2"
         )
         z.writestr("Products.txt", products)
 
