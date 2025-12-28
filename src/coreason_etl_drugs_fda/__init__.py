@@ -12,10 +12,17 @@
 Fast, extensible Python ETL to maintain a local Drugs FDA mirror
 """
 
+import os
+import sys
+
+from loguru import logger
+
 __version__ = "0.1.0"
 __author__ = "Gowtham A Rao"
 __email__ = "gowtham.rao@coreason.ai"
 
-from .main import hello_world
+# Configure logging
+logger.remove()
+logger.add(sys.stderr, level=os.getenv("LOG_LEVEL", "INFO"))
 
-__all__ = ["hello_world"]
+__all__ = []
