@@ -33,6 +33,7 @@ class ProductSilver(BaseModel):  # type: ignore[misc]
     strength: str
     active_ingredient: List[str]
     original_approval_date: Optional[date]
+    is_historic_record: bool = False
     hash_md5: str
 
 
@@ -79,6 +80,9 @@ def generate_row_hash(df: pl.DataFrame) -> pl.DataFrame:
             expr = pl.col(col_name).list.eval(pl.element().cast(pl.Utf8)).list.join(";")
         else:
             expr = pl.col(col_name).cast(pl.Utf8)
+
+        # Fill nulls with empty string to ensure concatenation doesn't result in null
+        expr = expr.fill_null("")
         exprs.append(expr)
 
     df = df.with_columns(
