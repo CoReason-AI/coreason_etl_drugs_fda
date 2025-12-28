@@ -31,6 +31,7 @@ TARGET_FILES = [
     "TE.txt",
     "Submissions.txt",
     "Exclusivity.txt",
+    "MarketingStatus_Lookup.txt",
 ]
 
 
@@ -289,6 +290,27 @@ def drugs_fda_source(base_url: str = "https://www.fda.gov/media/89850/download")
                 silver_df = silver_df.join(df_marketing_sub, on=["appl_no", "product_no"], how="left")
             else:
                 silver_df = silver_df.with_columns(pl.lit(None).alias("marketing_status_id"))
+
+            # 2.5. Join MarketingStatus_Lookup (Description)
+            df_marketing_lookup = get_df("MarketingStatus_Lookup.txt")
+            if (
+                "marketing_status_id" in df_marketing_lookup.columns
+                and "marketing_status_description" in df_marketing_lookup.columns
+            ):
+                # Ensure join key types match (Int64)
+                df_marketing_lookup = df_marketing_lookup.with_columns(
+                    pl.col("marketing_status_id").cast(pl.Int64, strict=False)
+                )
+                if "marketing_status_id" in silver_df.columns:
+                    silver_df = silver_df.with_columns(pl.col("marketing_status_id").cast(pl.Int64, strict=False))
+
+                    df_lookup_sub = df_marketing_lookup.select(
+                        ["marketing_status_id", "marketing_status_description"]
+                    ).unique(subset=["marketing_status_id"])
+
+                    silver_df = silver_df.join(df_lookup_sub, on="marketing_status_id", how="left")
+            else:
+                silver_df = silver_df.with_columns(pl.lit(None).alias("marketing_status_description"))
 
             # 3. Join TE (TECode)
             if "te_code" in df_te.columns:

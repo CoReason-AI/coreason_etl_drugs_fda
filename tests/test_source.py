@@ -14,15 +14,14 @@ from datetime import date
 from unittest.mock import MagicMock, patch
 
 import pytest
-from dlt.extract.exceptions import ResourceExtractionError
-from pydantic import ValidationError
-
 from coreason_etl_drugs_fda.source import (
     _create_silver_dataframe,
     _extract_approval_dates,
     _read_file_from_zip,
     drugs_fda_source,
 )
+from dlt.extract.exceptions import ResourceExtractionError
+from pydantic import ValidationError
 
 
 @pytest.fixture  # type: ignore[misc]
