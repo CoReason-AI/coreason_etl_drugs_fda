@@ -101,7 +101,7 @@ def test_transform_null_handling() -> None:
     # 2. clean_ingredients
     # str.to_uppercase on null is null.
     res_ing = clean_ingredients(df)
-    ing_list = res_ing["active_ingredients_list"].to_list()
+    ing_list = res_ing["active_ingredient"].to_list()
     assert ing_list[0] is None
     assert ing_list[1] == ["A", "B"]
 
@@ -221,3 +221,111 @@ def test_pydantic_validation_edge_cases() -> None:
     data["appl_no"] = ""
     with pytest.raises(ValidationError):
         ProductSilver(**data)
+
+
+def test_submission_join_duplicate_orig() -> None:
+    """
+    Test that the earliest ORIG submission date is selected when multiple exist.
+    """
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as z:
+        # ApplNo 000009 has two ORIG submissions
+        products = "ApplNo\tProductNo\tActiveIngredient\n000009\t001\tIng"
+        z.writestr("Products.txt", products)
+
+        # 1. Date 2023-01-01
+        # 2. Date 2022-01-01 (Earlier)
+        submissions = "ApplNo\tSubmissionType\tSubmissionStatusDate\n000009\tORIG\t2023-01-01\n000009\tORIG\t2022-01-01"
+        z.writestr("Submissions.txt", submissions)
+    buffer.seek(0)
+
+    with patch("requests.get") as mock_get:
+        mock_response = MagicMock()
+        mock_response.content = buffer.getvalue()
+        mock_response.raise_for_status.return_value = None
+        mock_get.return_value = mock_response
+
+        source = drugs_fda_source()
+        silver_prod = list(source.resources["silver_products"])
+        row = silver_prod[0]
+
+        # Expect 2022-01-01 (Earliest) because code sorts by date
+        assert row["original_approval_date"] == datetime.date(2022, 1, 1)
+
+
+def test_submission_join_mismatched_padding() -> None:
+    """
+    Test that join works even if ApplNo has different padding/length in source files,
+    because source.py normalizes them before join.
+    """
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as z:
+        # Products has "10" (will become "000010")
+        products = "ApplNo\tProductNo\tActiveIngredient\n10\t001\tIng"
+        z.writestr("Products.txt", products)
+
+        # Submissions has "000010" (already padded)
+        # OR "010" (partially padded)
+        submissions = "ApplNo\tSubmissionType\tSubmissionStatusDate\n010\tORIG\t2023-05-05"
+        z.writestr("Submissions.txt", submissions)
+    buffer.seek(0)
+
+    with patch("requests.get") as mock_get:
+        mock_response = MagicMock()
+        mock_response.content = buffer.getvalue()
+        mock_get.return_value = mock_response
+
+        source = drugs_fda_source()
+        silver_prod = list(source.resources["silver_products"])
+        row = silver_prod[0]
+
+        assert row["appl_no"] == "000010"
+        assert row["original_approval_date"] == datetime.date(2023, 5, 5)
+
+
+def test_encoding_cp1252() -> None:
+    """
+    Test reading files with CP1252 specific characters (e.g. curly quotes, accents).
+    \x93 is left curly quote in CP1252 (U+201C “).
+    \xe9 is 'é' in CP1252.
+    """
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as z:
+        # Construct bytes directly to avoid python encoding confusion
+        # Header
+        header = b"ApplNo\tProductNo\tDrugName\tActiveIngredient\n"
+        # Row: 000011 \t 001 \t Test [0x93] Name [0x94] \t Ingr [0xE9] dient
+        row = b"000011\t001\tTest\x93Name\x94\tIngr\xe9dient"
+        z.writestr("Products.txt", header + row)
+
+        # Submissions (normal)
+        z.writestr("Submissions.txt", "ApplNo\tSubmissionType\tSubmissionStatusDate\n000011\tORIG\t2023-01-01")
+
+    buffer.seek(0)
+
+    with patch("requests.get") as mock_get:
+        mock_response = MagicMock()
+        mock_response.content = buffer.getvalue()
+        mock_get.return_value = mock_response
+
+        source = drugs_fda_source()
+        silver_prod = list(source.resources["silver_products"])
+        row = silver_prod[0]
+
+        # Verify decoding
+        # 0x93 -> “ (U+201C)
+        # 0x94 -> ” (U+201D)
+        # 0xE9 -> é (U+00E9)
+        # DrugName is likely snake_cased or just present in dict?
+        # Note: _to_snake_case is for keys. Values are cleaned.
+        # But we don't have DrugName in Silver schema explicitly tested before?
+        # Silver resource yields whatever cols are in Products + enriched.
+        # Check 'drug_name' key.
+        assert row["drug_name"] == "TEST“NAME”" or row["drug_name"] == "Test“Name”"  # Case depends on if we upper it.
+        # We don't upper drug_name in transform.py, only active_ingredient.
+        # But raw extraction might? No.
+        # Wait, check `drug_name` value.
+        assert "Test“Name”" in row["drug_name"]
+
+        # active_ingredient is upper-cased in transform.py
+        assert row["active_ingredient"][0] == "INGRÉDIENT"
