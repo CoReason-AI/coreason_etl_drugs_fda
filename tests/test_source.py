@@ -109,9 +109,7 @@ def test_silver_products_legacy_date(mock_zip_content: bytes) -> None:
         products = "ApplNo\tProductNo\tActiveIngredient\n000007\t001\tIng"
         z.writestr("Products.txt", products)
         # Submissions with legacy string
-        submissions = (
-            "ApplNo\tSubmissionType\tSubmissionStatusDate\n" "000007\tORIG\tApproved prior to Jan 1, 1982"
-        )
+        submissions = "ApplNo\tSubmissionType\tSubmissionStatusDate\n000007\tORIG\tApproved prior to Jan 1, 1982"
         z.writestr("Submissions.txt", submissions)
     buffer.seek(0)
     mock_content = buffer.getvalue()

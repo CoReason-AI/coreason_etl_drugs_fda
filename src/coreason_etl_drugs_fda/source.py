@@ -11,7 +11,7 @@
 import io
 import re
 import zipfile
-from typing import Any, Dict, Iterator, List, Optional
+from typing import Any, Dict, Iterator, List
 
 import dlt
 import polars as pl
@@ -178,9 +178,9 @@ def drugs_fda_source(base_url: str = "https://www.fda.gov/media/89850/download")
             )
             # Ensure schema for empty map case
             if dates_df.is_empty():
-                 dates_df = pl.DataFrame(schema={"appl_no": pl.Utf8, "original_approval_date": pl.Utf8})
+                dates_df = pl.DataFrame(schema={"appl_no": pl.Utf8, "original_approval_date": pl.Utf8})
             else:
-                 dates_df = dates_df.with_columns(pl.col("appl_no").cast(pl.Utf8))
+                dates_df = dates_df.with_columns(pl.col("appl_no").cast(pl.Utf8))
 
             df = df.join(dates_df, on="appl_no", how="left")
 
