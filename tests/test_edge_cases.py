@@ -235,11 +235,7 @@ def test_submission_join_duplicate_orig() -> None:
 
         # 1. Date 2023-01-01
         # 2. Date 2022-01-01 (Earlier)
-        submissions = (
-            "ApplNo\tSubmissionType\tSubmissionStatusDate\n"
-            "000009\tORIG\t2023-01-01\n"
-            "000009\tORIG\t2022-01-01"
-        )
+        submissions = "ApplNo\tSubmissionType\tSubmissionStatusDate\n000009\tORIG\t2023-01-01\n000009\tORIG\t2022-01-01"
         z.writestr("Submissions.txt", submissions)
     buffer.seek(0)
 
@@ -291,7 +287,7 @@ def test_encoding_cp1252() -> None:
     """
     Test reading files with CP1252 specific characters (e.g. curly quotes, accents).
     \x93 is left curly quote in CP1252 (U+201C “).
-    \xE9 is 'é' in CP1252.
+    \xe9 is 'é' in CP1252.
     """
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w") as z:
