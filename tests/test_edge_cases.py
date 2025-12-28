@@ -333,3 +333,89 @@ def test_encoding_cp1252() -> None:
         # active_ingredient is upper-cased in transform.py
         # "Ingr\xe9dient" -> "Ingrédient" -> "INGRÉDIENT"
         assert row.active_ingredient[0] == "INGRÉDIENT"
+
+
+def test_gold_exclusivity_mixed_dates() -> None:
+    """
+    Test Gold layer protection status with mixed exclusivity dates.
+    Product 001 has two exclusivity records:
+    1. Past date (Expired)
+    2. Future date (Active)
+    Result should be is_protected=True (Max date > Today).
+    """
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as z:
+        products = "ApplNo\tProductNo\tForm\tStrength\tActiveIngredient\n000001\t001\tF\tS\tIng"
+        z.writestr("Products.txt", products)
+        z.writestr("Submissions.txt", "ApplNo\tSubmissionType\tSubmissionStatusDate\n000001\tORIG\t2020-01-01")
+
+        # Two exclusivity records for same product
+        # 2000-01-01 (Past)
+        # 3000-01-01 (Future)
+        excl = "ApplNo\tProductNo\tExclusivityDate\n000001\t001\t2000-01-01\n000001\t001\t3000-01-01"
+        z.writestr("Exclusivity.txt", excl)
+
+    buffer.seek(0)
+
+    with patch("requests.get") as mock_get:
+        mock_response = MagicMock()
+        mock_response.content = buffer.getvalue()
+        mock_get.return_value = mock_response
+
+        source = drugs_fda_source()
+        gold_prods = list(source.resources["dim_drug_product"])
+        assert len(gold_prods) == 1
+        row = gold_prods[0]
+
+        # Should be protected because max(3000, 2000) > today
+        assert row.is_protected is True
+
+
+def test_gold_auxiliary_duplication() -> None:
+    """
+    Test that duplicate records in auxiliary files (e.g., Applications) do not cause row explosion.
+    Applications.txt has duplicate rows for the same ApplNo.
+    """
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as z:
+        products = "ApplNo\tProductNo\tForm\tStrength\tActiveIngredient\n000001\t001\tF\tS\tIng"
+        z.writestr("Products.txt", products)
+        z.writestr("Submissions.txt", "ApplNo\tSubmissionType\tSubmissionStatusDate\n000001\tORIG\t2020-01-01")
+
+        # Duplicate Applications for 000001
+        # Row 1: Sponsor A
+        # Row 2: Sponsor A (Duplicate)
+        # Even if they differ, the logic uses unique(subset=['appl_no']), so it picks one.
+        apps = "ApplNo\tSponsorName\tApplType\n000001\tSponsorA\tN\n000001\tSponsorA\tN"
+        z.writestr("Applications.txt", apps)
+
+    buffer.seek(0)
+
+    with patch("requests.get") as mock_get:
+        mock_response = MagicMock()
+        mock_response.content = buffer.getvalue()
+        mock_get.return_value = mock_response
+
+        source = drugs_fda_source()
+        gold_prods = list(source.resources["dim_drug_product"])
+
+        # Should still be 1 row, not 2
+        assert len(gold_prods) == 1
+        assert gold_prods[0].sponsor_name == "SponsorA"
+
+
+def test_ingredients_complex_formatting() -> None:
+    """
+    Test ingredient cleaning with extra whitespace and separators.
+    Input: "  Ingredient A  ; Ingredient B ; "
+    Expected: ["INGREDIENT A", "INGREDIENT B", ""] (Empty string if trailing semi-colon)
+    """
+    df = pl.DataFrame({"active_ingredient": ["  Ingredient A  ; Ingredient B ; "]})
+    res = clean_ingredients(df)
+    ingredients = res["active_ingredient"][0].to_list()
+
+    assert "INGREDIENT A" in ingredients
+    assert "INGREDIENT B" in ingredients
+    # Current logic splits by ';', so trailing ';' produces an empty string at the end.
+    # We verify this behavior.
+    assert "" in ingredients
