@@ -66,18 +66,18 @@ def test_clean_ingredients() -> None:
     result = clean_ingredients(df)
 
     # Check output column exists
-    assert "active_ingredients_list" in result.columns
+    assert "active_ingredient" in result.columns
 
     # Check splitting and cleaning
-    row1 = result["active_ingredients_list"][0]
+    row1 = result["active_ingredient"][0]
     assert len(row1) == 2
     assert row1[0] == "INGREDIENT A"
     assert row1[1] == "INGREDIENT B"
 
-    row2 = result["active_ingredients_list"][1]
+    row2 = result["active_ingredient"][1]
     assert len(row2) == 1
     assert row2[0] == "INGREDIENT C"
 
-    row3 = result["active_ingredients_list"][2]
+    row3 = result["active_ingredient"][2]
     assert len(row3) == 1
     assert row3[0] == "INGREDIENT D"
