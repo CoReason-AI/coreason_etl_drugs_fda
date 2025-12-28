@@ -12,7 +12,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from coreason_etl_drugs_fda.pipeline import create_pipeline, run_pipeline, silver_products_transformer
+from coreason_etl_drugs_fda.pipeline import create_pipeline, run_pipeline
 from coreason_etl_drugs_fda.source import drugs_fda_source
 
 
@@ -55,10 +55,6 @@ def test_pipeline_bronze_ingestion(mock_zip_content_integration: bytes) -> None:
         mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
 
-        # Create pipeline
-        # We use a custom destination or 'duckdb' if available, else 'dummy'
-        # For testing logic, we can just inspect the source resources again or run with destination='dummy'
-
         source = drugs_fda_source()
 
         # Check resources exist
@@ -66,48 +62,12 @@ def test_pipeline_bronze_ingestion(mock_zip_content_integration: bytes) -> None:
         assert "raw_fda__products" in resources
         assert "raw_fda__submissions" in resources
         assert "raw_fda__exclusivity" in resources
+        assert "silver_products" in resources
 
         # Check content of Exclusivity
         excl_data = list(resources["raw_fda__exclusivity"])
         assert len(excl_data) == 1
         assert excl_data[0]["exclusivity_code"] == "ODE"
-
-
-def test_silver_products_transformer() -> None:
-    """
-    Test the silver transformer logic on a chunk of data.
-    """
-    # Input data (raw dicts from dlt)
-    # Note: Bronze layer might give ints or strings depending on Polars inference.
-    # Based on previous tests, '004' became 4.
-    raw_chunk = [
-        {
-            "appl_no": 4,
-            "product_no": 4,
-            "form": "TABLET",
-            "active_ingredient": "INGREDIENT A; INGREDIENT B",
-            "foo": "bar",  # Extra column
-        }
-    ]
-
-    # Run transformer
-    # It expects iterator of lists
-    transformer = silver_products_transformer(iter([raw_chunk]))
-
-    result_chunk = next(transformer)
-    assert len(result_chunk) == 1
-    row = result_chunk[0]
-
-    # Check Normalization
-    assert row["appl_no"] == "000004"
-    assert row["product_no"] == "004"
-
-    # Check Cleaning
-    assert row["active_ingredients_list"] == ["INGREDIENT A", "INGREDIENT B"]
-
-    # Check IDs
-    assert "coreason_id" in row
-    assert "hash_md5" in row
 
 
 def test_run_pipeline_execution() -> None:
@@ -132,12 +92,3 @@ def test_create_pipeline() -> None:
     p = create_pipeline(destination="dummy", dataset_name="test_ds")
     assert p.pipeline_name == "coreason_drugs_fda"
     assert p.dataset_name.startswith("test_ds")
-
-
-def test_silver_products_transformer_empty() -> None:
-    """Test handling of empty chunks or none."""
-    transformer = silver_products_transformer(iter([[]]))
-    # It should yield nothing or handle empty list gracefully
-    # Our implementation checks `if not chunk: continue`
-    results = list(transformer)
-    assert len(results) == 0

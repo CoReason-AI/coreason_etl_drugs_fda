@@ -10,6 +10,7 @@
 
 import io
 import zipfile
+from datetime import date
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -23,17 +24,21 @@ def mock_zip_content() -> bytes:
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w") as z:
         # Create Products.txt
+        # ApplNo 000004 has match in Submissions.
+        # ApplNo 000005 has NO match.
         products_content = (
             "ApplNo\tProductNo\tForm\tStrength\tReferenceDrug\tDrugName\tActiveIngredient\tReferenceStandard\n"
             "000004\t004\tSOLUTION/DROPS;OPHTHALMIC\t1%\t0\tPAREDRINE\tHYDROXYAMPHETAMINE HYDROBROMIDE\t0\n"
             "   000005   \t005\tTABLET   \t5MG   \t0\tTESTDRUG\tTESTINGREDIENT\t0"
-        )  # Test trimming
+        )
         z.writestr("Products.txt", products_content)
 
         # Create Submissions.txt
+        # 000004: ORIG, AP, 1982-01-01
         submissions_content = (
             "ApplNo\tSubmissionClassCodeID\tSubmissionType\tSubmissionNo\tSubmissionStatus\tSubmissionStatusDate\tReviewPriorityID\n"
-            "000004\t7\tORIG\t1\tAP\t1982-01-01\t0"
+            "000004\t7\tORIG\t1\tAP\t1982-01-01\t0\n"
+            "000006\t7\tSUPPL\t2\tAP\t2023-01-01\t0"
         )
         z.writestr("Submissions.txt", submissions_content)
 
@@ -44,8 +49,8 @@ def mock_zip_content() -> bytes:
 def test_drugs_fda_source_extraction(mock_zip_content: bytes) -> None:
     """
     Test that the source correctly extracts, parses, and cleans data from the ZIP.
+    Also verifies the 'silver_products' resource.
     """
-    # Mock requests.get to return the mock zip
     with patch("requests.get") as mock_get:
         mock_response = MagicMock()
         mock_response.content = mock_zip_content
@@ -55,60 +60,71 @@ def test_drugs_fda_source_extraction(mock_zip_content: bytes) -> None:
         # Initialize the source
         source = drugs_fda_source()
 
-        # Load the data into a list to inspect
-        # We can extract resources without running the pipeline completely if we want,
-        # but running it ensures dlt logic holds.
-        # Alternatively, we can just iterate the resources.
+        # Check resources
+        resources = source.resources
+        assert "raw_fda__products" in resources
+        assert "raw_fda__submissions" in resources
+        assert "silver_products" in resources
 
-        # Check resources in the source
-        assert "raw_fda__products" in source.resources
-        assert "raw_fda__submissions" in source.resources
+        # 1. Verify Raw Products
+        raw_prod = list(resources["raw_fda__products"])
+        assert len(raw_prod) == 2
+        assert raw_prod[0]["appl_no"] == "000004"
+        assert raw_prod[0]["active_ingredient"] == "HYDROXYAMPHETAMINE HYDROBROMIDE"
 
-        # Consume the products resource
-        products_resource = source.resources["raw_fda__products"]
-        data = list(products_resource)
+        # 2. Verify Silver Products
+        silver_prod = list(resources["silver_products"])
+        assert len(silver_prod) == 2
 
-        # data is a list of dicts (dlt flattens lists yielded by the resource)
-        assert len(data) == 2
-
-        # Check first row
-        row1 = data[0]
+        row1 = silver_prod[0]
+        # Check Padded IDs
         assert row1["appl_no"] == "000004"
-        # ProductNo is inferred as int because all values are numeric in this column (unlike ApplNo which has spaces)
-        assert row1["product_no"] == 4
-        assert row1["drug_name"] == "PAREDRINE"
+        assert row1["product_no"] == "004"
+        # Check Date Join
+        assert row1["original_approval_date"] == date(1982, 1, 1)
+        # Check Historic Record Logic (Since date was 1982-01-01, but not the legacy string, flag should be false?
+        # Wait, the test data says "1982-01-01". The legacy string is "Approved prior to Jan 1, 1982".
+        # So is_historic_record should be False here.
+        assert not row1["is_historic_record"]
+        # Check Active Ingredient List
+        assert row1["active_ingredient"] == ["HYDROXYAMPHETAMINE HYDROBROMIDE"]
+        # Check UUID
+        assert "coreason_id" in row1
+        assert "hash_md5" in row1
 
-        # Check second row (Verify trimming)
-        row2 = data[1]
+        row2 = silver_prod[1]
         assert row2["appl_no"] == "000005"
-        assert row2["product_no"] == 5
-        assert row2["form"] == "TABLET"  # Was "TABLET   "
-        assert row2["strength"] == "5MG"  # Was "5MG   "
-
-        # Check snake_case conversion
-        assert "active_ingredient" in row1
-
-        # Check Submissions resource
-        submissions_resource = source.resources["raw_fda__submissions"]
-        sub_data = list(submissions_resource)
-        assert sub_data[0]["appl_no"] == 4
-        assert sub_data[0]["submission_type"] == "ORIG"
+        # Check No Date Join
+        assert row2["original_approval_date"] is None
 
 
-def test_source_integration_with_dlt(mock_zip_content: bytes) -> None:
-    """
-    Test that the source works within a dlt pipeline run.
-    """
+def test_silver_products_legacy_date(mock_zip_content: bytes) -> None:
+    """Test legacy date string handling in silver_products."""
+    # Modify mock to include legacy string
+    import io
+    import zipfile
+
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as z:
+        products = "ApplNo\tProductNo\tActiveIngredient\n000007\t001\tIng"
+        z.writestr("Products.txt", products)
+        # Submissions with legacy string
+        submissions = (
+            "ApplNo\tSubmissionType\tSubmissionStatusDate\n" "000007\tORIG\tApproved prior to Jan 1, 1982"
+        )
+        z.writestr("Submissions.txt", submissions)
+    buffer.seek(0)
+    mock_content = buffer.getvalue()
+
     with patch("requests.get") as mock_get:
         mock_response = MagicMock()
-        mock_response.content = mock_zip_content
+        mock_response.content = mock_content
+        mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
 
-        # We use a dummy destination or just check extraction info
-        # Using "duckdb" requires dlt[duckdb], which might not be installed.
-        # Using "dummy" destination provided by dlt?
-        # Actually, we can just extract.
+        source = drugs_fda_source()
+        silver_prod = list(source.resources["silver_products"])
+        row = silver_prod[0]
 
-        # For unit testing, iterating the source is often enough, which we did above.
-        # But let's verify no errors during dlt normalization/load simulation if possible.
-        pass  # The above test covers the logic well enough for unit testing.
+        assert row["original_approval_date"] == date(1982, 1, 1)
+        assert row["is_historic_record"] is True

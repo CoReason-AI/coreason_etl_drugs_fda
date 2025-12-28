@@ -101,7 +101,7 @@ def test_transform_null_handling() -> None:
     # 2. clean_ingredients
     # str.to_uppercase on null is null.
     res_ing = clean_ingredients(df)
-    ing_list = res_ing["active_ingredients_list"].to_list()
+    ing_list = res_ing["active_ingredient"].to_list()
     assert ing_list[0] is None
     assert ing_list[1] == ["A", "B"]
 
