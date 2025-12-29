@@ -15,10 +15,11 @@ from unittest.mock import MagicMock, patch
 
 import polars as pl
 import pytest
+from pydantic import ValidationError
+
 from coreason_etl_drugs_fda.silver import ProductSilver
 from coreason_etl_drugs_fda.source import drugs_fda_source
 from coreason_etl_drugs_fda.transform import clean_ingredients
-from pydantic import ValidationError
 
 
 def test_search_vector_full_complexity() -> None:
