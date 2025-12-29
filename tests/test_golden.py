@@ -10,9 +10,12 @@
 
 import io
 import zipfile
+from unittest.mock import MagicMock, patch
+
 import polars as pl
-from unittest.mock import patch, MagicMock
+
 from coreason_etl_drugs_fda.source import drugs_fda_source
+
 
 def test_silver_logic_golden() -> None:
     """
@@ -23,14 +26,12 @@ def test_silver_logic_golden() -> None:
     # 1. Create Mock Input Data
     # Products: Includes mixed case, whitespace, semicolon ingredients, need for padding
     products_content = (
-        "ApplNo\tProductNo\tForm\tStrength\tActiveIngredient\n"
-        "4\t4\tTAB\t10MG\t Ingredient A; Ingredient B \n"
+        "ApplNo\tProductNo\tForm\tStrength\tActiveIngredient\n4\t4\tTAB\t10MG\t Ingredient A; Ingredient B \n"
     ).encode("cp1252")
 
     # Submissions: Includes Legacy Date string
     submissions_content = (
-        "ApplNo\tSubmissionType\tSubmissionStatusDate\n"
-        "4\tORIG\tApproved prior to Jan 1, 1982\n"
+        "ApplNo\tSubmissionType\tSubmissionStatusDate\n4\tORIG\tApproved prior to Jan 1, 1982\n"
     ).encode("cp1252")
 
     buffer = io.BytesIO()
@@ -61,7 +62,7 @@ def test_silver_logic_golden() -> None:
     # Note: We hardcode comparison here for simplicity or read the file
     expected_df = pl.read_csv(
         "tests/fixtures/golden_products.csv",
-        schema_overrides={"source_id": pl.Utf8, "appl_no": pl.Utf8, "product_no": pl.Utf8}
+        schema_overrides={"source_id": pl.Utf8, "appl_no": pl.Utf8, "product_no": pl.Utf8},
     )
     expected = expected_df.row(0, named=True)
 
