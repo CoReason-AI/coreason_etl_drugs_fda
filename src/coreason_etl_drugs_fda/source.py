@@ -353,6 +353,46 @@ def drugs_fda_source(base_url: str = "https://www.fda.gov/media/89850/download")
             else:
                 silver_df = silver_df.with_columns(pl.lit(False).alias("is_generic"))
 
+            # 6. Derive search_vector
+            # Concatenated string of DrugName + ActiveIngredient + SponsorName + TECode.
+            # DrugName should be in Products (silver_df source).
+            # ActiveIngredient is active_ingredients_list (List[str]).
+            # SponsorName and TECode from joins.
+            # We need to handle nulls and convert list to string.
+
+            # Ensure columns exist or lit("")
+            search_components = []
+
+            # DrugName (check if exists, snake_case)
+            if "drug_name" in silver_df.columns:
+                search_components.append(pl.col("drug_name").fill_null(""))
+            else:
+                search_components.append(pl.lit(""))
+
+            # ActiveIngredient (List[str]) -> join with space
+            if "active_ingredients_list" in silver_df.columns:
+                search_components.append(pl.col("active_ingredients_list").list.join(" ").fill_null(""))
+            else:
+                search_components.append(pl.lit(""))
+                # If active_ingredients_list is missing, we must add it as empty list because it's required by Pydantic
+                silver_df = silver_df.with_columns(pl.lit([]).alias("active_ingredients_list"))
+
+            # SponsorName
+            # logic above ensures sponsor_name exists (joined or created as null)
+            search_components.append(pl.col("sponsor_name").fill_null(""))
+
+            # TECode
+            # logic above ensures te_code exists (joined or created as null)
+            search_components.append(pl.col("te_code").fill_null(""))
+
+            silver_df = silver_df.with_columns(
+                pl.concat_str(search_components, separator=" ").str.strip_chars().alias("search_vector")
+            )
+            # Upper case search_vector for consistency? BRD doesn't specify case, but search vectors usually upper.
+            # ActiveIngredients are already upper. DrugName might not be.
+            # Let's uppercase it.
+            silver_df = silver_df.with_columns(pl.col("search_vector").str.to_uppercase())
+
             # Fill Nones for optional fields that might be missing after join
             # Pydantic Optional handles None, but Polars might have Nulls.
             # to_dicts() handles it.

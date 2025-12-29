@@ -77,6 +77,9 @@ def test_drugs_fda_source_extraction(mock_zip_content: bytes) -> None:
         raw_prod = list(resources["raw_fda__products"])
         assert len(raw_prod) == 2
         assert raw_prod[0]["appl_no"] == "000004"
+        # Raw layer keeps original name (snake_cased) but not transformed yet?
+        # Transform logic renames it. Raw layer is direct from read.
+        # Products.txt has "ActiveIngredient", clean_dataframe makes it "active_ingredient"
         assert raw_prod[0]["active_ingredient"] == "HYDROXYAMPHETAMINE HYDROBROMIDE"
 
         # 2. Verify Silver Products
@@ -90,9 +93,10 @@ def test_drugs_fda_source_extraction(mock_zip_content: bytes) -> None:
         # Check Date Join
         assert row1.original_approval_date == date(1982, 1, 1)
         # Check Active Ingredient List
-        assert row1.active_ingredient == ["HYDROXYAMPHETAMINE HYDROBROMIDE"]
+        assert row1.active_ingredients_list == ["HYDROXYAMPHETAMINE HYDROBROMIDE"]
         # Check UUID
         assert row1.coreason_id is not None
+        assert row1.source_id == "000004004"
         assert row1.hash_md5 is not None
 
         row2 = silver_prod[1]
@@ -280,6 +284,14 @@ def test_gold_products_logic() -> None:
         assert row1.is_protected is True  # Excl Date 3000 > Today
         assert row1.marketing_status_id == 1
         assert row1.te_code is None  # Missing in TE
+        # search_vector: DrugName + ActiveIngredient + SponsorName + TECode
+        # Products.txt didn't provide DrugName, so ""
+        # Ing1 + SponsorA + ""
+        # Note: join puts spaces. "" + Ing1 + SponsorA + "" -> "Ing1 SponsorA" (stripped)
+        # Note: ActiveIngredient is uppercased in transformation!
+        # Search vector is also uppercased now
+        assert "ING1" in row1.search_vector
+        assert "SPONSORA" in row1.search_vector
 
         # Row 2: ANDA, Not Protected, Has TE
         row2 = next(p for p in gold_prods if p.appl_no == "000002")
@@ -288,6 +300,10 @@ def test_gold_products_logic() -> None:
         assert row2.is_protected is False  # Excl Date 2000 < Today
         assert row2.te_code == "AB"
         assert row2.marketing_status_id is None  # Missing in Marketing
+        # Ing2 + SponsorB + AB
+        assert "ING2" in row2.search_vector
+        assert "SPONSORB" in row2.search_vector
+        assert "AB" in row2.search_vector
 
 
 def test_gold_products_missing_aux_files() -> None:
@@ -315,6 +331,13 @@ def test_gold_products_missing_aux_files() -> None:
         assert row.is_generic is False  # Default if missing
         assert row.is_protected is False  # Default if missing
         assert row.marketing_status_id is None
+        # search_vector should handle missing cols
+        # drug_name missing -> ""
+        # active_ingredients -> "ING"
+        # sponsor missing -> ""
+        # te missing -> ""
+        # So "ING"
+        assert row.search_vector == "ING"
 
 
 def test_gold_products_missing_appl_type_column() -> None:

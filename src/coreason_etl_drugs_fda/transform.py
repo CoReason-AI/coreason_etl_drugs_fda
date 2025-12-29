@@ -68,6 +68,9 @@ def clean_ingredients(df: pl.DataFrame) -> pl.DataFrame:
             .str.to_uppercase()
             .str.split(";")
             .list.eval(pl.element().str.strip_chars())
-            .alias("active_ingredient")
+            .alias("active_ingredients_list")
         )
+        # Drop the original column if we renamed it/created a new one
+        if "active_ingredients_list" in df.columns:
+            df = df.drop("active_ingredient")
     return df
