@@ -237,6 +237,12 @@ def drugs_fda_source(base_url: str = "https://www.fda.gov/media/89850/download")
 
             # Validate rows against Pydantic model
             for row in df.to_dicts():
+                # Filter out rows with null ID keys (critical for Linkage)
+                if not row.get("appl_no") or not row.get("product_no"):
+                    appl = row.get("appl_no")
+                    prod = row.get("product_no")
+                    logger.warning(f"Skipping row with missing keys: ApplNo={appl}, ProductNo={prod}")
+                    continue
                 yield ProductSilver(**row)
             logger.info("Silver Products layer generation complete.")
 

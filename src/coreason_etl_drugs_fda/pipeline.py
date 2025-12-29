@@ -9,6 +9,7 @@
 # Source Code: https://github.com/CoReason-AI/coreason_etl_drugs_fda
 
 import dlt
+from loguru import logger
 
 from coreason_etl_drugs_fda.source import drugs_fda_source
 
@@ -36,7 +37,7 @@ def run_pipeline() -> None:
     source = drugs_fda_source()
 
     info = pipeline.run(source)
-    print(info)
+    logger.info(info)
 
 
 if __name__ == "__main__":  # pragma: no cover
