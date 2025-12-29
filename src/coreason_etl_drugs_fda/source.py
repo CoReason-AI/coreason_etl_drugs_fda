@@ -370,12 +370,12 @@ def drugs_fda_source(base_url: str = "https://www.fda.gov/media/89850/download")
                 search_components.append(pl.lit(""))
 
             # ActiveIngredient (List[str]) -> join with space
+            # clean_ingredients ensures `active_ingredients_list` always exists in silver_df
             if "active_ingredients_list" in silver_df.columns:
                 search_components.append(pl.col("active_ingredients_list").list.join(" ").fill_null(""))
             else:
+                # Should not happen if clean_ingredients was run
                 search_components.append(pl.lit(""))
-                # If active_ingredients_list is missing, we must add it as empty list because it's required by Pydantic
-                silver_df = silver_df.with_columns(pl.lit([]).alias("active_ingredients_list"))
 
             # SponsorName
             # logic above ensures sponsor_name exists (joined or created as null)

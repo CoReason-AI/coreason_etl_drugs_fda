@@ -71,13 +71,13 @@ def clean_ingredients(df: pl.DataFrame) -> pl.DataFrame:
             .str.to_uppercase()
             .str.split(";")
             .list.eval(pl.element().str.strip_chars())
-            .fill_null([])  # Ensure nulls become empty lists
+            .fill_null(pl.lit([], dtype=pl.List(pl.Utf8)))  # Ensure nulls become typed empty lists
             .alias("active_ingredients_list")
         )
         # Drop the original column
         df = df.drop("active_ingredient")
     else:
-        # Create empty list column if input missing
-        df = df.with_columns(pl.lit([]).alias("active_ingredients_list"))
+        # Create empty list column if input missing, explicitly typed as List[Utf8]
+        df = df.with_columns(pl.lit([], dtype=pl.List(pl.Utf8)).alias("active_ingredients_list"))
 
     return df
