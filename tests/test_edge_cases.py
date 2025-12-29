@@ -101,7 +101,7 @@ def test_transform_null_handling() -> None:
     # 2. clean_ingredients
     # str.to_uppercase on null is null.
     res_ing = clean_ingredients(df)
-    ing_list = res_ing["active_ingredient"].to_list()
+    ing_list = res_ing["active_ingredients_list"].to_list()
     assert ing_list[0] is None
     assert ing_list[1] == ["A", "B"]
 
@@ -139,11 +139,12 @@ def test_id_overflow() -> None:
     with pytest.raises(ValidationError):
         ProductSilver(
             coreason_id=uuid.uuid4(),
+            source_id="1234567001",
             appl_no=res["appl_no"][0],  # Invalid
             product_no="001",
             form="F",
             strength="S",
-            active_ingredient=[],
+            active_ingredients_list=[],
             original_approval_date=None,
             hash_md5="hash",
         )
@@ -194,11 +195,12 @@ def test_pydantic_validation_edge_cases() -> None:
     """
     base_data = {
         "coreason_id": uuid.uuid4(),
+        "source_id": "000123001",
         "appl_no": "000123",
         "product_no": "001",
         "form": "Form",
         "strength": "Str",
-        "active_ingredient": ["Ing"],
+        "active_ingredients_list": ["Ing"],
         "original_approval_date": None,
         "hash_md5": "hash",
     }
@@ -324,15 +326,15 @@ def test_encoding_cp1252() -> None:
         # But Pydantic model DOES NOT have DrugName.
         # So DrugName will be ignored/dropped by ProductSilver unless we added it?
         # ProductSilver in silver.py:
-        # coreason_id, appl_no, product_no, form, strength, active_ingredient, original_approval_date,
+        # coreason_id, appl_no, product_no, form, strength, active_ingredients_list, original_approval_date,
         # is_historic_record, hash_md5.
         # It does NOT have DrugName.
         # So we can't assert row['drug_name'].
-        # We can only assert active_ingredient decoding.
+        # We can only assert active_ingredients_list decoding.
 
-        # active_ingredient is upper-cased in transform.py
+        # active_ingredients_list is upper-cased in transform.py
         # "Ingr\xe9dient" -> "Ingrédient" -> "INGRÉDIENT"
-        assert row.active_ingredient[0] == "INGRÉDIENT"
+        assert row.active_ingredients_list[0] == "INGRÉDIENT"
 
 
 def test_gold_exclusivity_mixed_dates() -> None:
@@ -412,7 +414,7 @@ def test_ingredients_complex_formatting() -> None:
     """
     df = pl.DataFrame({"active_ingredient": ["  Ingredient A  ; Ingredient B ; "]})
     res = clean_ingredients(df)
-    ingredients = res["active_ingredient"][0].to_list()
+    ingredients = res["active_ingredients_list"][0].to_list()
 
     assert "INGREDIENT A" in ingredients
     assert "INGREDIENT B" in ingredients

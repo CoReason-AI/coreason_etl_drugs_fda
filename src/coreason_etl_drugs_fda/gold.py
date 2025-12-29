@@ -21,11 +21,12 @@ class ProductGold(BaseModel):  # type: ignore[misc]
     """
 
     coreason_id: uuid.UUID
+    source_id: str = Field(..., pattern=r"^\d{9}$")
     appl_no: str = Field(..., pattern=r"^\d{6}$")
     product_no: str = Field(..., pattern=r"^\d{3}$")
     form: str
     strength: str
-    active_ingredient: List[str]
+    active_ingredients_list: List[str]
     original_approval_date: Optional[date]
 
     # Gold Added Fields
@@ -35,6 +36,7 @@ class ProductGold(BaseModel):  # type: ignore[misc]
     te_code: Optional[str] = None
     is_generic: bool
     is_protected: bool
+    search_vector: str
 
     # Hash (from Silver, but maybe Gold hash needed?)
     # BRD doesn't specify Gold hash, but Silver has hash_md5.
