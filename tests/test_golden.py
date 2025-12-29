@@ -10,10 +10,10 @@
 
 import io
 import zipfile
+from datetime import date
 from unittest.mock import MagicMock, patch
 
 import polars as pl
-
 from coreason_etl_drugs_fda.source import drugs_fda_source
 
 
@@ -70,19 +70,53 @@ def test_silver_logic_golden() -> None:
     row_dict = row.model_dump()
 
     # Assertions
-    assert row_dict["source_id"] == expected["source_id"]
-    assert row_dict["appl_no"] == expected["appl_no"]
-    assert row_dict["product_no"] == expected["product_no"]
-    assert row_dict["form"] == expected["form"]
-    assert row_dict["strength"] == expected["strength"]
+    # Strict equality check involves ensuring every field matches.
+    # We construct a dict from expected to match row_dict format.
 
-    # Check List
-    # expected["active_ingredients_list"] is a string representation "['INGREDIENT A', 'INGREDIENT B']"
-    # We need to parse it or just check elements
-    assert row_dict["active_ingredients_list"] == ["INGREDIENT A", "INGREDIENT B"]
+    # 1. Check List parsing
+    # expected["active_ingredients_list"] is a string "['INGREDIENT A', 'INGREDIENT B']"
+    # We need to eval it to list
+    import ast
 
-    # Check Date
-    assert str(row_dict["original_approval_date"]) == expected["original_approval_date"]
+    expected_ingredients = ast.literal_eval(expected["active_ingredients_list"])
 
-    # Check Flag
-    assert str(row_dict["is_historic_record"]) == str(expected["is_historic_record"])
+    # 2. Check Booleans (read_csv might read "True" as boolean True or string "True")
+    # pl.read_csv usually infers boolean if "True"/"False"
+    expected_is_historic = expected["is_historic_record"]
+    if isinstance(expected_is_historic, str):
+        expected_is_historic = expected_is_historic.lower() == "true"
+
+    # 3. Construct clean expected dict
+    approval_date = None
+    if expected["original_approval_date"] is not None:
+        approval_date = date.fromisoformat(str(expected["original_approval_date"]))
+
+    expected_clean = {
+        "source_id": expected["source_id"],
+        "appl_no": expected["appl_no"],
+        "product_no": expected["product_no"],
+        "form": expected["form"],
+        "strength": expected["strength"],
+        "active_ingredients_list": expected_ingredients,
+        "original_approval_date": approval_date,
+        "is_historic_record": expected_is_historic,
+    }
+
+    # Compare core fields (excluding coreason_id which is UUID and hash_md5 which we should check if possible)
+    # We can check coreason_id string representation if we want strict deterministic check?
+    # BRD says "Strictly implement the Golden File Test".
+    # We should probably verify everything we can.
+
+    assert row_dict["source_id"] == expected_clean["source_id"]
+    assert row_dict["appl_no"] == expected_clean["appl_no"]
+    assert row_dict["product_no"] == expected_clean["product_no"]
+    assert row_dict["form"] == expected_clean["form"]
+    assert row_dict["strength"] == expected_clean["strength"]
+    assert row_dict["active_ingredients_list"] == expected_clean["active_ingredients_list"]
+    assert row_dict["original_approval_date"] == expected_clean["original_approval_date"]
+    assert row_dict["is_historic_record"] == expected_clean["is_historic_record"]
+
+    # Check Hash MD5 if present in expected (it's not in fixture currently, so we skip or add it?)
+    # Fixture content has core fields.
+    # It does NOT have coreason_id or hash_md5.
+    # So we only assert what is in the Golden File.

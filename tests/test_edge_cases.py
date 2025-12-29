@@ -16,11 +16,10 @@ from unittest.mock import MagicMock, patch
 
 import polars as pl
 import pytest
-from pydantic import ValidationError
-
 from coreason_etl_drugs_fda.silver import ProductSilver, generate_coreason_id
 from coreason_etl_drugs_fda.source import drugs_fda_source
 from coreason_etl_drugs_fda.transform import clean_ingredients, fix_dates, normalize_ids
+from pydantic import ValidationError
 
 
 def test_malformed_tsv_ragged_lines() -> None:
