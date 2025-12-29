@@ -27,11 +27,12 @@ class ProductSilver(BaseModel):  # type: ignore[misc]
     """
 
     coreason_id: uuid.UUID
+    source_id: str = Field(..., pattern=r"^\d{9}$")
     appl_no: str = Field(..., pattern=r"^\d{6}$")
     product_no: str = Field(..., pattern=r"^\d{3}$")
     form: str
     strength: str
-    active_ingredient: List[str]
+    active_ingredients_list: List[str]
     original_approval_date: Optional[date]
     is_historic_record: bool = False
     hash_md5: str
@@ -53,6 +54,9 @@ def generate_coreason_id(df: pl.DataFrame) -> pl.DataFrame:
         prod = struct["product_no"]
         name = f"{appl}|{prod}"
         return str(uuid.uuid5(NAMESPACE_FDA, name))
+
+    # Generate source_id: ApplNo + ProductNo
+    df = df.with_columns((pl.col("appl_no") + pl.col("product_no")).alias("source_id"))
 
     df = df.with_columns(
         pl.struct(["appl_no", "product_no"])

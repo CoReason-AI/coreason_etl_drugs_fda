@@ -39,11 +39,12 @@ def test_product_silver_model() -> None:
     # Valid data
     data = {
         "coreason_id": uuid.uuid4(),
+        "source_id": "001234001",
         "appl_no": "001234",
         "product_no": "001",
         "form": "Tablet",
         "strength": "10mg",
-        "active_ingredient": ["INGREDIENT A"],
+        "active_ingredients_list": ["INGREDIENT A"],
         "original_approval_date": "2023-01-01",
         "hash_md5": "abc123hash",
     }

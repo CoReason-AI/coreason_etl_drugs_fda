@@ -149,7 +149,7 @@ def test_complex_integration() -> None:
         assert row.product_no == "001"
 
         # Verify Ingredients (Split & Cleaned)
-        assert row.active_ingredient == ["INGA", "INGB"]
+        assert row.active_ingredients_list == ["INGA", "INGB"]
 
         # Verify Date (Earliest ORIG)
         assert row.original_approval_date == date(2010, 1, 1)
