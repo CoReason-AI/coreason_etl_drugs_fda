@@ -179,6 +179,14 @@ def _create_silver_dataframe(zip_content: bytes) -> pl.DataFrame:
     df = clean_form(df)
     df = clean_ingredients(df)
     df = fix_dates(df, ["original_approval_date"])
+
+    # Explicitly fill nulls for string fields required by Pydantic model
+    # "form" and "strength" are required str, so null must be "".
+    if "form" in df.columns:
+        df = df.with_columns(pl.col("form").fill_null(""))
+    if "strength" in df.columns:
+        df = df.with_columns(pl.col("strength").fill_null(""))
+
     df = generate_coreason_id(df)
     df = generate_row_hash(df)
 
