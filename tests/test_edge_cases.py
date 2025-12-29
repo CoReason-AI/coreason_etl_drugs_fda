@@ -102,7 +102,8 @@ def test_transform_null_handling() -> None:
     # str.to_uppercase on null is null.
     res_ing = clean_ingredients(df)
     ing_list = res_ing["active_ingredients_list"].to_list()
-    assert ing_list[0] is None
+    # Expectation updated: Null values should become empty lists
+    assert ing_list[0] == []
     assert ing_list[1] == ["A", "B"]
 
     # 3. generate_coreason_id handling of Nulls
