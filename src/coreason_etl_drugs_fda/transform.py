@@ -81,3 +81,12 @@ def clean_ingredients(df: pl.DataFrame) -> pl.DataFrame:
         df = df.with_columns(pl.lit([], dtype=pl.List(pl.Utf8)).alias("active_ingredients_list"))
 
     return df
+
+
+def clean_form(df: pl.DataFrame) -> pl.DataFrame:
+    """
+    Converts the 'form' column to Title Case.
+    """
+    if "form" in df.columns:
+        df = df.with_columns(pl.col("form").str.to_titlecase())
+    return df
