@@ -167,3 +167,74 @@ def test_complex_integration() -> None:
 
         # Verify Protection (Expired)
         assert row.is_protected is False
+
+
+def test_submission_date_sorting_legacy_vs_iso() -> None:
+    """
+    Complex Case: Verify correct sorting when Submissions contains both ISO dates
+    and the legacy "Approved prior to..." string.
+    Expected: "Approved prior to Jan 1, 1982" (1982-01-01) is strictly older than "1985-01-01".
+    If sorting is purely lexical on string, "1..." < "A...", so 1985 wins (INCORRECT).
+    If sorting is chronological, 1982 wins (CORRECT).
+    """
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as z:
+        z.writestr("Products.txt", "ApplNo\tProductNo\tActiveIngredient\tForm\tStrength\n000001\t001\tIng\tF\tS")
+
+        # Two submissions for same ApplNo:
+        # 1. 1985-01-01
+        # 2. Approved prior to Jan 1, 1982
+        # We want the earliest.
+        content = (
+            "ApplNo\tSubmissionType\tSubmissionStatusDate\n"
+            "000001\tORIG\t1985-01-01\n"
+            "000001\tORIG\tApproved prior to Jan 1, 1982"
+        )
+        z.writestr("Submissions.txt", content)
+
+    buffer.seek(0)
+
+    with patch("requests.get") as mock_get:
+        mock_response = MagicMock()
+        mock_response.content = buffer.getvalue()
+        mock_response.raise_for_status.return_value = None
+        mock_get.return_value = mock_response
+
+        source = drugs_fda_source()
+        gold_prods = list(source.resources["dim_drug_product"])
+
+        assert len(gold_prods) == 1
+        row = gold_prods[0]
+
+        # Should be 1982-01-01
+        assert row.original_approval_date == date(1982, 1, 1)
+
+
+def test_te_code_fanout_prevention() -> None:
+    """
+    Complex Case: Verify that duplicate TE codes for the same Product do not cause row explosion.
+    The pipeline should pick one unique TE code or deduplicate.
+    """
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as z:
+        z.writestr("Products.txt", "ApplNo\tProductNo\tActiveIngredient\tForm\tStrength\n000001\t001\tIng\tF\tS")
+        z.writestr("Submissions.txt", "ApplNo\tSubmissionType\tSubmissionStatusDate\n000001\tORIG\t2020-01-01")
+
+        # TE File has duplicate rows or multiple codes
+        # If it has different codes, the current logic picks one (arbitrary due to unique keep='first'?).
+        # If it has same code, it should definitely not fan out.
+        z.writestr("TE.txt", "ApplNo\tProductNo\tTECode\n000001\t001\tAB\n000001\t001\tXY")
+
+    buffer.seek(0)
+
+    with patch("requests.get") as mock_get:
+        mock_response = MagicMock()
+        mock_response.content = buffer.getvalue()
+        mock_response.raise_for_status.return_value = None
+        mock_get.return_value = mock_response
+
+        source = drugs_fda_source()
+        gold_prods = list(source.resources["dim_drug_product"])
+
+        # Should NOT fan out to 2 rows
+        assert len(gold_prods) == 1

@@ -124,7 +124,16 @@ def _extract_approval_dates(zip_content: bytes) -> Dict[str, str]:
             # Let's normalize ApplNo to padded string HERE and in Products before join.
             df = df.with_columns(pl.col("appl_no").cast(pl.Utf8).str.pad_start(6, "0"))
 
-            df = df.sort("submission_status_date")
+            # FIX: Ensure proper sorting of dates (ISO vs Legacy String)
+            # Create a temporary column 'sort_date' by applying fix_dates logic
+            # Duplicate the column so fix_dates doesn't mutate the original we want to return
+            df = df.with_columns(pl.col("submission_status_date").alias("sort_date"))
+            df = fix_dates(df, ["sort_date"])
+
+            # Now sort by the parsed Date object
+            df = df.sort("sort_date")
+
+            # Deduplicate keeping the earliest (first)
             df = df.unique(subset=["appl_no"], keep="first")
 
             rows = df.select(["appl_no", "submission_status_date"]).to_dicts()
