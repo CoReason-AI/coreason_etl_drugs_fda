@@ -124,7 +124,16 @@ def _extract_approval_dates(zip_content: bytes) -> Dict[str, str]:
             # Let's normalize ApplNo to padded string HERE and in Products before join.
             df = df.with_columns(pl.col("appl_no").cast(pl.Utf8).str.pad_start(6, "0"))
 
-            df = df.sort("submission_status_date")
+            # FIX: Ensure proper sorting of dates (ISO vs Legacy String)
+            # Create a temporary column 'sort_date' by applying fix_dates logic
+            # Duplicate the column so fix_dates doesn't mutate the original we want to return
+            df = df.with_columns(pl.col("submission_status_date").alias("sort_date"))
+            df = fix_dates(df, ["sort_date"])
+
+            # Now sort by the parsed Date object
+            df = df.sort("sort_date")
+
+            # Deduplicate keeping the earliest (first)
             df = df.unique(subset=["appl_no"], keep="first")
 
             rows = df.select(["appl_no", "submission_status_date"]).to_dicts()
@@ -370,12 +379,8 @@ def drugs_fda_source(base_url: str = "https://www.fda.gov/media/89850/download")
                 search_components.append(pl.lit(""))
 
             # ActiveIngredient (List[str]) -> join with space
-            if "active_ingredients_list" in silver_df.columns:
-                search_components.append(pl.col("active_ingredients_list").list.join(" ").fill_null(""))
-            else:
-                search_components.append(pl.lit(""))
-                # If active_ingredients_list is missing, we must add it as empty list because it's required by Pydantic
-                silver_df = silver_df.with_columns(pl.lit([]).alias("active_ingredients_list"))
+            # clean_ingredients ensures `active_ingredients_list` always exists in silver_df
+            search_components.append(pl.col("active_ingredients_list").list.join(" ").fill_null(""))
 
             # SponsorName
             # logic above ensures sponsor_name exists (joined or created as null)
