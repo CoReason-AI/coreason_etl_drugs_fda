@@ -61,6 +61,9 @@ def fix_dates(df: pl.DataFrame, date_cols: list[str]) -> pl.DataFrame:
 def clean_ingredients(df: pl.DataFrame) -> pl.DataFrame:
     """
     Splits ActiveIngredient by semicolon, upper-cases, and trims whitespace.
+    Ensures 'active_ingredients_list' column always exists (as empty list if missing input).
+    Strictly removes 'active_ingredient' column.
+    Handles null values by converting them to empty lists.
     """
     if "active_ingredient" in df.columns:
         df = df.with_columns(
@@ -68,9 +71,13 @@ def clean_ingredients(df: pl.DataFrame) -> pl.DataFrame:
             .str.to_uppercase()
             .str.split(";")
             .list.eval(pl.element().str.strip_chars())
+            .fill_null([])  # Ensure nulls become empty lists
             .alias("active_ingredients_list")
         )
-        # Drop the original column if we renamed it/created a new one
-        if "active_ingredients_list" in df.columns:
-            df = df.drop("active_ingredient")
+        # Drop the original column
+        df = df.drop("active_ingredient")
+    else:
+        # Create empty list column if input missing
+        df = df.with_columns(pl.lit([]).alias("active_ingredients_list"))
+
     return df

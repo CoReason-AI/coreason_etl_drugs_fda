@@ -82,3 +82,26 @@ def test_clean_ingredients() -> None:
     row3 = result["active_ingredients_list"][2]
     assert len(row3) == 1
     assert row3[0] == "INGREDIENT D"
+
+
+def test_clean_ingredients_missing_column() -> None:
+    """Test behavior when active_ingredient column is missing."""
+    df = pl.DataFrame({"other_col": [1, 2]})
+    result = clean_ingredients(df)
+
+    assert "active_ingredients_list" in result.columns
+    # Should be empty list
+    assert result["active_ingredients_list"][0].to_list() == []
+    # Original column definitely not there
+    assert "active_ingredient" not in result.columns
+    assert "other_col" in result.columns
+
+
+def test_clean_ingredients_null_values() -> None:
+    """Test behavior with null values."""
+    df = pl.DataFrame({"active_ingredient": [None, "A; B"]})
+    result = clean_ingredients(df)
+
+    # We now expect empty list for null input
+    assert result["active_ingredients_list"][0].to_list() == []
+    assert result["active_ingredients_list"][1].to_list() == ["A", "B"]
