@@ -225,7 +225,7 @@ def test_mixed_case_headers() -> None:
         # dlt wraps exceptions in ResourceExtractionError
         # Catching generic Exception to avoid import path issues with dlt's re-exports
         with pytest.raises(Exception) as excinfo:
-             list(source.resources["silver_products"])
+            list(source.resources["silver_products"])
 
         # Verify it is indeed the expected error type and message
         assert "ResourceExtractionError" in type(excinfo.value).__name__
