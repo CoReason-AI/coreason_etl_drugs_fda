@@ -14,6 +14,7 @@ from unittest.mock import MagicMock, patch
 
 from coreason_etl_drugs_fda.source import drugs_fda_source
 
+
 def test_missing_submissions_file() -> None:
     """
     Edge Case: Submissions.txt is missing from the ZIP.
@@ -105,7 +106,10 @@ def test_malformed_legacy_date() -> None:
     with zipfile.ZipFile(buffer, "w") as z:
         # Include Form/Strength
         z.writestr("Products.txt", "ApplNo\tProductNo\tForm\tStrength\n001\t001\tF\tS")
-        z.writestr("Submissions.txt", "ApplNo\tSubmissionType\tSubmissionStatusDate\n001\tORIG\tapproved prior to Jan 1, 1982")
+        z.writestr(
+            "Submissions.txt",
+            "ApplNo\tSubmissionType\tSubmissionStatusDate\n001\tORIG\tapproved prior to Jan 1, 1982",
+        )
     buffer.seek(0)
 
     with patch("requests.get") as mock_get:
@@ -170,11 +174,7 @@ def test_duplicate_products_logic() -> None:
     """
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w") as z:
-        content = (
-            "ApplNo\tProductNo\tForm\tStrength\n"
-            "001\t001\tF\tS\n"
-            "001\t001\tF\tS"
-        )
+        content = "ApplNo\tProductNo\tForm\tStrength\n001\t001\tF\tS\n001\t001\tF\tS"
         z.writestr("Products.txt", content)
         z.writestr("Submissions.txt", "ApplNo\tSubmissionType\tSubmissionStatusDate\n001\tORIG\t2020-01-01")
     buffer.seek(0)
