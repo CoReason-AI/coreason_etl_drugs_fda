@@ -1,0 +1,2 @@
+source_id,appl_no,product_no,form,strength,active_ingredients_list,original_approval_date,is_historic_record
+000004004,000004,004,Tab,10MG,"['INGREDIENT A', 'INGREDIENT B']",1982-01-01,True

@@ -18,10 +18,11 @@ import dlt
 import polars as pl
 import requests  # type: ignore[import-untyped]
 from dlt.sources import DltResource
+from loguru import logger
 
 from coreason_etl_drugs_fda.gold import ProductGold
 from coreason_etl_drugs_fda.silver import ProductSilver, generate_coreason_id, generate_row_hash
-from coreason_etl_drugs_fda.transform import clean_ingredients, fix_dates, normalize_ids
+from coreason_etl_drugs_fda.transform import clean_form, clean_ingredients, fix_dates, normalize_ids
 
 # List of files to extract from the FDA ZIP archive
 TARGET_FILES = [
@@ -175,6 +176,7 @@ def _create_silver_dataframe(zip_content: bytes) -> pl.DataFrame:
 
     # 5. Transformations
     df = normalize_ids(df)
+    df = clean_form(df)
     df = clean_ingredients(df)
     df = fix_dates(df, ["original_approval_date"])
     df = generate_coreason_id(df)
@@ -190,6 +192,7 @@ def drugs_fda_source(base_url: str = "https://www.fda.gov/media/89850/download")
     Downloads the ZIP file and yields resources for each target TSV file.
     Also yields a 'silver_products' resource with enriched data.
     """
+    logger.info(f"Starting Drugs@FDA download from {base_url}")
     response = requests.get(base_url, stream=True)
     response.raise_for_status()
     zip_bytes = response.content
@@ -200,11 +203,19 @@ def drugs_fda_source(base_url: str = "https://www.fda.gov/media/89850/download")
         for target in TARGET_FILES:
             if target in all_files:
                 files_present.append(target)
+            else:
+                logger.warning(f"Expected file {target} not found in ZIP archive.")
+
+    logger.info(f"Found {len(files_present)} target files in archive.")
 
     # 1. Yield Raw Resources (Bronze)
     for filename in files_present:
 
-        @dlt.resource(name=f"raw_fda__{_to_snake_case(filename.replace('.txt', ''))}", write_disposition="replace")  # type: ignore[misc]
+        @dlt.resource(  # type: ignore[misc]
+            name=f"raw_fda__{_to_snake_case(filename.replace('.txt', ''))}",
+            write_disposition="replace",
+            schema_contract={"columns": "evolve"},
+        )
         def file_resource(fname: str = filename, z_content: bytes = zip_bytes) -> Iterator[List[Dict[str, Any]]]:
             # For Raw, we just yield what we read (clean but not normalized types)
             yield from _read_file_from_zip(z_content, fname)
@@ -214,13 +225,20 @@ def drugs_fda_source(base_url: str = "https://www.fda.gov/media/89850/download")
     # 2. Yield Silver Products Resource
     if "Products.txt" in files_present and "Submissions.txt" in files_present:
 
-        @dlt.resource(name="silver_products", write_disposition="merge", primary_key="coreason_id")  # type: ignore[misc]
+        @dlt.resource(  # type: ignore[misc]
+            name="silver_products",
+            write_disposition="merge",
+            primary_key="coreason_id",
+            schema_contract={"columns": "evolve"},
+        )
         def silver_products_resource(z_content: bytes = zip_bytes) -> Iterator[ProductSilver]:
+            logger.info("Generating Silver Products layer...")
             df = _create_silver_dataframe(z_content)
 
             # Validate rows against Pydantic model
             for row in df.to_dicts():
                 yield ProductSilver(**row)
+            logger.info("Silver Products layer generation complete.")
 
         yield silver_products_resource()
 
@@ -231,8 +249,11 @@ def drugs_fda_source(base_url: str = "https://www.fda.gov/media/89850/download")
     # BRD says "Left Join", so yes.
     if "Products.txt" in files_present:
 
-        @dlt.resource(name="dim_drug_product", write_disposition="replace")  # type: ignore[misc]
+        @dlt.resource(  # type: ignore[misc]
+            name="dim_drug_product", write_disposition="replace", schema_contract={"columns": "evolve"}
+        )
         def gold_products_resource(z_content: bytes = zip_bytes) -> Iterator[ProductGold]:
+            logger.info("Generating Gold Products layer...")
             # Get Base Silver Data
             silver_df = _create_silver_dataframe(z_content)
             if silver_df.is_empty():
