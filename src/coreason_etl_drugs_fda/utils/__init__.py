@@ -7,15 +7,3 @@
 # Commercial use beyond a 30-day trial requires a separate license.
 #
 # Source Code: https://github.com/CoReason-AI/coreason_etl_drugs_fda
-
-"""
-Fast, extensible Python ETL to maintain a local Drugs FDA mirror
-"""
-
-from coreason_etl_drugs_fda.utils.logger import logger
-
-__version__ = "0.1.0"
-__author__ = "Gowtham A Rao"
-__email__ = "gowtham.rao@coreason.ai"
-
-__all__ = ["logger"]
