@@ -12,7 +12,7 @@ import io
 import re
 import zipfile
 from datetime import date
-from typing import Any, Dict, Iterator, List
+from typing import Any, Dict, Iterator, List, Union
 
 import dlt
 import polars as pl
@@ -42,17 +42,24 @@ def _to_snake_case(name: str) -> str:
     return re.sub("([a-z0-9])([A-Z])", r"\1_\2", s1).lower()
 
 
-def _clean_dataframe(df: pl.DataFrame) -> pl.DataFrame:
+def _clean_dataframe(df: Union[pl.DataFrame, pl.LazyFrame]) -> Union[pl.DataFrame, pl.LazyFrame]:
     """
     Cleans the dataframe by:
     1. Converting column names to snake_case.
     2. Stripping leading/trailing whitespace from string columns.
     """
-    new_cols = {col: _to_snake_case(col) for col in df.columns}
+    if isinstance(df, pl.LazyFrame):
+        cols = df.collect_schema().names()
+        dtypes = df.collect_schema().dtypes()
+    else:
+        cols = df.columns
+        dtypes = df.dtypes
+
+    new_cols = {col: _to_snake_case(col) for col in cols}
     df = df.rename(new_cols)
 
     df = df.with_columns(
-        [pl.col(col).str.strip_chars() for col, dtype in zip(df.columns, df.dtypes, strict=True) if dtype == pl.String]
+        [pl.col(new_cols[col]).str.strip_chars() for col, dtype in zip(cols, dtypes, strict=True) if dtype == pl.String]
     )
     return df
 
@@ -81,7 +88,12 @@ def _read_file_from_zip(zip_content: bytes, filename: str) -> Iterator[List[Dict
 
         with z.open(filename) as f:
             df = _read_csv_bytes(f.read())
-            df = _clean_dataframe(df)
+            # For Bronze, we keep it eager as we yield dicts immediately
+            df = _clean_dataframe(df)  # type: ignore[assignment]
+            # Since we pass DF, we get DF back.
+            if isinstance(df, pl.LazyFrame):
+                # Should not happen given input is DataFrame, but for type safety if logic changes
+                df = df.collect()
             yield df.to_dicts()
 
 
@@ -98,8 +110,9 @@ def _extract_approval_dates(zip_content: bytes) -> Dict[str, str]:
             df_eager = _read_csv_bytes(f.read())
             if df_eager.is_empty():
                 return {}
-            # Convert to lazy for optimization
-            df = _clean_dataframe(df_eager).lazy()
+            # Convert to lazy IMMEDIATELY, then clean
+            df = df_eager.lazy()
+            df = _clean_dataframe(df)  # type: ignore[assignment]
 
             # We can only check columns on lazy frame if schema allows.
             cols = df.collect_schema().names()
@@ -156,7 +169,10 @@ def _create_silver_dataframe(zip_content: bytes) -> pl.LazyFrame:
                         "drug_name": pl.String,
                     }
                 ).lazy()
-            df = _clean_dataframe(df_eager).lazy()
+
+            # Convert to lazy IMMEDIATELY, then clean
+            df = df_eager.lazy()
+            df = _clean_dataframe(df)  # type: ignore[assignment]
 
     # 3. Normalize Products ApplNo for Join
     df = df.with_columns(pl.col("appl_no").cast(pl.String).str.pad_start(6, "0"))
@@ -282,7 +298,9 @@ def drugs_fda_source(base_url: str = "https://www.fda.gov/media/89850/download")
                         eager = _read_csv_bytes(f.read())
                         if eager.is_empty():
                             return pl.DataFrame().lazy()
-                        return _clean_dataframe(eager).lazy()
+                        # Convert to lazy IMMEDIATELY, then clean
+                        df = eager.lazy()
+                        return _clean_dataframe(df)  # type: ignore[return-value]
 
             # Read Aux Files
             df_apps = get_df_lazy("Applications.txt")
