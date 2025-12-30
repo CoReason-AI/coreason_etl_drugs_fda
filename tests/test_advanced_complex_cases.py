@@ -13,13 +13,15 @@ import zipfile
 from unittest.mock import MagicMock, patch
 
 import pytest
-from coreason_etl_drugs_fda.source import drugs_fda_source
 from dlt.extract.exceptions import ResourceExtractionError
+
+from coreason_etl_drugs_fda.source import drugs_fda_source
 
 
 def test_duplicate_source_records_determinism() -> None:
     """
     Test that duplicate identical records in Products.txt produce identical coreason_ids.
+    (Dummy edit to force CI re-run)
     dlt's merge disposition with primary key should deduplicate these into a single state entry,
     but the resource yields them. We verify they yield with same ID.
     """
