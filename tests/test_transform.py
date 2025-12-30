@@ -12,7 +12,7 @@ from datetime import date
 
 import polars as pl
 
-from coreason_etl_drugs_fda.transform import clean_ingredients, fix_dates, normalize_ids
+from coreason_etl_drugs_fda.transform import clean_form, clean_ingredients, fix_dates, normalize_ids
 
 
 def test_normalize_ids() -> None:
@@ -105,3 +105,19 @@ def test_clean_ingredients_null_values() -> None:
     # We now expect empty list for null input
     assert result["active_ingredients_list"][0].to_list() == []
     assert result["active_ingredients_list"][1].to_list() == ["A", "B"]
+
+
+def test_clean_form() -> None:
+    """Test clean_form Title Casing."""
+    df = pl.DataFrame({"form": ["TABLET", "solution/drops"]})
+    result = clean_form(df)
+    assert result["form"][0] == "Tablet"
+    assert result["form"][1] == "Solution/Drops"
+
+
+def test_clean_form_missing_column() -> None:
+    """Test clean_form with missing 'form' column."""
+    df = pl.DataFrame({"other": [1]})
+    result = clean_form(df)
+    assert "form" not in result.columns
+    assert "other" in result.columns

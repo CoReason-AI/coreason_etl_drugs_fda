@@ -11,7 +11,7 @@
 import hashlib
 import uuid
 from datetime import date
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import polars as pl
 from pydantic import BaseModel, Field
@@ -38,7 +38,7 @@ class ProductSilver(BaseModel):  # type: ignore[misc]
     hash_md5: str
 
 
-def generate_coreason_id(df: pl.DataFrame) -> pl.DataFrame:
+def generate_coreason_id(df: Union[pl.DataFrame, pl.LazyFrame]) -> Union[pl.DataFrame, pl.LazyFrame]:
     """
     Generates coreason_id using UUIDv5(NAMESPACE_FDA, f"{ApplNo}|{ProductNo}").
     Expects appl_no and product_no to be already normalized (padded strings).
@@ -67,7 +67,7 @@ def generate_coreason_id(df: pl.DataFrame) -> pl.DataFrame:
     return df
 
 
-def generate_row_hash(df: pl.DataFrame) -> pl.DataFrame:
+def generate_row_hash(df: Union[pl.DataFrame, pl.LazyFrame]) -> Union[pl.DataFrame, pl.LazyFrame]:
     """
     Generates an MD5 hash of the row content for change detection.
     This is a simplified implementation hashing the concatenation of all columns as string.
@@ -76,8 +76,17 @@ def generate_row_hash(df: pl.DataFrame) -> pl.DataFrame:
     # We must cast all columns to String first, especially lists.
 
     exprs = []
-    for col_name in df.columns:
-        dtype = df.schema[col_name]
+
+    # Use collect_schema if lazy, otherwise schema
+    if isinstance(df, pl.LazyFrame):
+        schema = df.collect_schema()
+        cols = schema.names()
+    else:
+        schema = df.schema
+        cols = df.columns
+
+    for col_name in cols:
+        dtype = schema[col_name]
         if isinstance(dtype, pl.List):
             # Convert list to string representation: join elements with ;
             # Ensure elements are strings before joining
