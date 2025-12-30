@@ -214,3 +214,36 @@ def test_resilience_non_ascii_ingredients() -> None:
         # Let's see what Python does.
         expected = ing_str.upper()
         assert expected in row.active_ingredients_list
+
+
+def test_missing_submissions_skips_silver() -> None:
+    """
+    Test that the silver_products resource is NOT yielded when Submissions.txt is missing.
+    The source explicitly checks for existence of both Products.txt and Submissions.txt
+    before defining the resource.
+    """
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as z:
+        # Include Products.txt but OMIT Submissions.txt
+        z.writestr(
+            "Products.txt",
+            "ApplNo\tProductNo\tForm\tStrength\tActiveIngredient\n000001\t001\tTab\t10mg\tIng1\n",
+        )
+        z.writestr("Applications.txt", "ApplNo\n000001")
+
+    buffer.seek(0)
+
+    with patch("requests.get") as mock_get:
+        mock_response = MagicMock()
+        mock_response.content = buffer.getvalue()
+        mock_response.raise_for_status.return_value = None
+        mock_get.return_value = mock_response
+
+        source = drugs_fda_source()
+
+        # We expect bronze resources to be present (e.g. raw_fda__products)
+        assert "raw_fda__products" in source.resources
+        assert "raw_fda__applications" in source.resources
+
+        # But silver_products should be ABSENT because Submissions.txt is missing
+        assert "silver_products" not in source.resources
