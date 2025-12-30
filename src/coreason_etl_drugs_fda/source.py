@@ -89,7 +89,7 @@ def _read_file_from_zip(zip_content: bytes, filename: str) -> Iterator[List[Dict
         with z.open(filename) as f:
             df = _read_csv_bytes(f.read())
             # For Bronze, we keep it eager as we yield dicts immediately
-            df = _clean_dataframe(df)  # type: ignore[assignment]
+            df = _clean_dataframe(df)
             # Since we pass DF, we get DF back.
             if isinstance(df, pl.LazyFrame):
                 # Should not happen given input is DataFrame, but for type safety if logic changes
@@ -112,7 +112,7 @@ def _extract_approval_dates(zip_content: bytes) -> Dict[str, str]:
                 return {}
             # Convert to lazy IMMEDIATELY, then clean
             df = df_eager.lazy()
-            df = _clean_dataframe(df)  # type: ignore[assignment]
+            df = _clean_dataframe(df)
 
             # We can only check columns on lazy frame if schema allows.
             cols = df.collect_schema().names()
@@ -172,7 +172,7 @@ def _create_silver_dataframe(zip_content: bytes) -> pl.LazyFrame:
 
             # Convert to lazy IMMEDIATELY, then clean
             df = df_eager.lazy()
-            df = _clean_dataframe(df)  # type: ignore[assignment]
+            df = _clean_dataframe(df)
 
     # 3. Normalize Products ApplNo for Join
     df = df.with_columns(pl.col("appl_no").cast(pl.String).str.pad_start(6, "0"))
@@ -300,7 +300,7 @@ def drugs_fda_source(base_url: str = "https://www.fda.gov/media/89850/download")
                             return pl.DataFrame().lazy()
                         # Convert to lazy IMMEDIATELY, then clean
                         df = eager.lazy()
-                        return _clean_dataframe(df)  # type: ignore[return-value]
+                        return _clean_dataframe(df)
 
             # Read Aux Files
             df_apps = get_df_lazy("Applications.txt")
