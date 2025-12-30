@@ -16,11 +16,10 @@ from unittest.mock import MagicMock, patch
 
 import polars as pl
 import pytest
-from pydantic import ValidationError
-
 from coreason_etl_drugs_fda.silver import ProductSilver, generate_coreason_id
 from coreason_etl_drugs_fda.source import drugs_fda_source
 from coreason_etl_drugs_fda.transform import clean_ingredients, fix_dates, normalize_ids
+from pydantic import ValidationError
 
 
 def test_malformed_tsv_ragged_lines() -> None:
@@ -91,7 +90,7 @@ def test_transform_null_handling() -> None:
 
     # 1. normalize_ids
     # Should handle None. Padded strings of null usually become null or "00null"?
-    # pl.col().cast(pl.Utf8) converts None to null. str.pad_start on null results in null.
+    # pl.col().cast(pl.String) converts None to null. str.pad_start on null results in null.
     res_ids = normalize_ids(df)
     assert res_ids["appl_no"][0] is None
     assert res_ids["appl_no"][1] == "000123"

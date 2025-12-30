@@ -14,15 +14,14 @@ from datetime import date
 from unittest.mock import MagicMock, patch
 
 import pytest
-from dlt.extract.exceptions import ResourceExtractionError
-from pydantic import ValidationError
-
 from coreason_etl_drugs_fda.source import (
     _create_silver_dataframe,
     _extract_approval_dates,
     _read_file_from_zip,
     drugs_fda_source,
 )
+from dlt.extract.exceptions import ResourceExtractionError
+from pydantic import ValidationError
 
 
 @pytest.fixture  # type: ignore[misc]
@@ -196,7 +195,7 @@ def test_silver_products_validation_error() -> None:
         # Pydantic regex: ^\d{6}$
         # We'll provide a 5 digit one.
         # Also, transform logic pads it, so we need to provide one that FAILS after padding?
-        # Logic: df.with_columns(pl.col("appl_no").cast(pl.Utf8).str.pad_start(6, "0"))
+        # Logic: df.with_columns(pl.col("appl_no").cast(pl.String).str.pad_start(6, "0"))
         # So "123" becomes "000123" which is valid.
         # We need something that is NOT digits. "ABC".
         # But wait, transform logic doesn't check for digits before padding.

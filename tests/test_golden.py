@@ -14,7 +14,6 @@ from datetime import date
 from unittest.mock import MagicMock, patch
 
 import polars as pl
-
 from coreason_etl_drugs_fda.source import drugs_fda_source
 
 
@@ -63,7 +62,7 @@ def test_silver_logic_golden() -> None:
     # Note: We hardcode comparison here for simplicity or read the file
     expected_df = pl.read_csv(
         "tests/fixtures/golden_products.csv",
-        schema_overrides={"source_id": pl.Utf8, "appl_no": pl.Utf8, "product_no": pl.Utf8},
+        schema_overrides={"source_id": pl.String, "appl_no": pl.String, "product_no": pl.String},
     )
     expected = expected_df.row(0, named=True)
 

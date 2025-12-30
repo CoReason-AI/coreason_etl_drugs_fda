@@ -52,7 +52,7 @@ def _clean_dataframe(df: pl.DataFrame) -> pl.DataFrame:
     df = df.rename(new_cols)
 
     df = df.with_columns(
-        [pl.col(col).str.strip_chars() for col, dtype in zip(df.columns, df.dtypes, strict=True) if dtype == pl.Utf8]
+        [pl.col(col).str.strip_chars() for col, dtype in zip(df.columns, df.dtypes, strict=True) if dtype == pl.String]
     )
     return df
 
@@ -123,7 +123,7 @@ def _extract_approval_dates(zip_content: bytes) -> Dict[str, str]:
             # If we normalize here, we get "000004".
             # If Products is int 4, we need to normalize that before join too.
             # Let's normalize ApplNo to padded string HERE and in Products before join.
-            df = df.with_columns(pl.col("appl_no").cast(pl.Utf8).str.pad_start(6, "0"))
+            df = df.with_columns(pl.col("appl_no").cast(pl.String).str.pad_start(6, "0"))
 
             # FIX: Ensure proper sorting of dates (ISO vs Legacy String)
             # Create a temporary column 'sort_date' by applying fix_dates logic
@@ -160,7 +160,7 @@ def _create_silver_dataframe(zip_content: bytes) -> pl.DataFrame:
         return pl.DataFrame()
 
     # 3. Normalize Products ApplNo for Join
-    df = df.with_columns(pl.col("appl_no").cast(pl.Utf8).str.pad_start(6, "0"))
+    df = df.with_columns(pl.col("appl_no").cast(pl.String).str.pad_start(6, "0"))
 
     # 4. Join Approval Date
     dates_df = pl.DataFrame(
@@ -168,9 +168,9 @@ def _create_silver_dataframe(zip_content: bytes) -> pl.DataFrame:
     )
     # Ensure schema for empty map case
     if dates_df.is_empty():
-        dates_df = pl.DataFrame(schema={"appl_no": pl.Utf8, "original_approval_date": pl.Utf8})
+        dates_df = pl.DataFrame(schema={"appl_no": pl.String, "original_approval_date": pl.String})
     else:
-        dates_df = dates_df.with_columns(pl.col("appl_no").cast(pl.Utf8))
+        dates_df = dates_df.with_columns(pl.col("appl_no").cast(pl.String))
 
     df = df.join(dates_df, on="appl_no", how="left")
 
@@ -290,25 +290,25 @@ def drugs_fda_source(base_url: str = "https://www.fda.gov/media/89850/download")
             # Normalize Keys in Aux Files
             # Applications: appl_no
             if "appl_no" in df_apps.columns:
-                df_apps = df_apps.with_columns(pl.col("appl_no").cast(pl.Utf8).str.pad_start(6, "0"))
+                df_apps = df_apps.with_columns(pl.col("appl_no").cast(pl.String).str.pad_start(6, "0"))
 
             # MarketingStatus: appl_no, product_no
             if "appl_no" in df_marketing.columns:
-                df_marketing = df_marketing.with_columns(pl.col("appl_no").cast(pl.Utf8).str.pad_start(6, "0"))
+                df_marketing = df_marketing.with_columns(pl.col("appl_no").cast(pl.String).str.pad_start(6, "0"))
             if "product_no" in df_marketing.columns:
-                df_marketing = df_marketing.with_columns(pl.col("product_no").cast(pl.Utf8).str.pad_start(3, "0"))
+                df_marketing = df_marketing.with_columns(pl.col("product_no").cast(pl.String).str.pad_start(3, "0"))
 
             # TE: appl_no, product_no
             if "appl_no" in df_te.columns:
-                df_te = df_te.with_columns(pl.col("appl_no").cast(pl.Utf8).str.pad_start(6, "0"))
+                df_te = df_te.with_columns(pl.col("appl_no").cast(pl.String).str.pad_start(6, "0"))
             if "product_no" in df_te.columns:
-                df_te = df_te.with_columns(pl.col("product_no").cast(pl.Utf8).str.pad_start(3, "0"))
+                df_te = df_te.with_columns(pl.col("product_no").cast(pl.String).str.pad_start(3, "0"))
 
             # Exclusivity: appl_no, product_no
             if "appl_no" in df_exclusivity.columns:
-                df_exclusivity = df_exclusivity.with_columns(pl.col("appl_no").cast(pl.Utf8).str.pad_start(6, "0"))
+                df_exclusivity = df_exclusivity.with_columns(pl.col("appl_no").cast(pl.String).str.pad_start(6, "0"))
             if "product_no" in df_exclusivity.columns:
-                df_exclusivity = df_exclusivity.with_columns(pl.col("product_no").cast(pl.Utf8).str.pad_start(3, "0"))
+                df_exclusivity = df_exclusivity.with_columns(pl.col("product_no").cast(pl.String).str.pad_start(3, "0"))
 
             # 1. Join Applications (SponsorName, ApplType)
             # We select only needed columns to avoid collisions

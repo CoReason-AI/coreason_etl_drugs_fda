@@ -13,10 +13,9 @@ import zipfile
 from unittest.mock import MagicMock, patch
 
 import pytest
+from coreason_etl_drugs_fda.source import drugs_fda_source
 from dlt.extract.exceptions import ResourceExtractionError
 from polars.exceptions import ColumnNotFoundError
-
-from coreason_etl_drugs_fda.source import drugs_fda_source
 
 
 def test_empty_input_file_handling() -> None:
@@ -110,7 +109,7 @@ def test_null_keys_in_source() -> None:
 
         # We expect at least the valid row.
         # The null row:
-        # ApplNo -> cast(Utf8) -> null/empty string.
+        # ApplNo -> cast(String) -> null/empty string.
         # pad_start(6, "0") -> "000000" (if empty string) or null (if null)?
         # If CSV reader treats empty field as null, pad_start on null is null.
         # If it treats as empty string "", pad_start is "000000".
