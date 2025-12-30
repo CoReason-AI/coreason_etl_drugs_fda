@@ -421,7 +421,8 @@ def test_create_silver_dataframe_missing_products() -> None:
     with zipfile.ZipFile(buffer, "w") as z:
         z.writestr("Submissions.txt", "ApplNo\n1")
 
-    df = _create_silver_dataframe(buffer.getvalue())
+    # Now returns LazyFrame, so we must collect
+    df = _create_silver_dataframe(buffer.getvalue()).collect()
     assert df.is_empty()
 
 

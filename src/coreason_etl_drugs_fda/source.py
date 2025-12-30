@@ -62,16 +62,6 @@ def _read_csv_bytes(content: bytes) -> pl.DataFrame:
     if not content:
         return pl.DataFrame()
 
-    # Ensure all columns are read as UTF8 to avoid type inference issues (0004 -> 4)
-    # This is critical for IDs like ApplNo.
-    # We can try to infer schema safe, but infer_schema_length=0 forces string usually?
-    # Or strict dtypes?
-    # Spec says "dlt infers types" for Bronze.
-    # But for our internal logic (Silver Join), we need control.
-    # Let's rely on infer_schema_length=10000 or similar, but IDs are tricky.
-    # If we want to guarantee strings for everything initially (safest for ETL), we can use infer_schema_length=0
-    # But that might make everything String.
-    # Let's try to just cast ApplNo explicitly if possible? No, we don't know if it's there yet.
     return pl.read_csv(
         content,
         separator="\t",
@@ -97,7 +87,7 @@ def _read_file_from_zip(zip_content: bytes, filename: str) -> Iterator[List[Dict
 
 def _extract_approval_dates(zip_content: bytes) -> Dict[str, str]:
     """
-    Extracts 'ORIG' submission dates from Submissions.txt.
+    Extracts 'ORIG' submission dates from Submissions.txt using Lazy execution.
     Returns: Dict[ApplNo, DateString]
     """
     with zipfile.ZipFile(io.BytesIO(zip_content)) as z:
@@ -105,72 +95,83 @@ def _extract_approval_dates(zip_content: bytes) -> Dict[str, str]:
             return {}
 
         with z.open("Submissions.txt") as f:
-            df = _read_csv_bytes(f.read())
-            df = _clean_dataframe(df)
+            df_eager = _read_csv_bytes(f.read())
+            if df_eager.is_empty():
+                return {}
+            # Convert to lazy for optimization
+            df = _clean_dataframe(df_eager).lazy()
 
-            if "submission_type" not in df.columns or "submission_status_date" not in df.columns:
+            # We can only check columns on lazy frame if schema allows.
+            cols = df.collect_schema().names()
+            if "submission_type" not in cols or "submission_status_date" not in cols:
                 return {}
 
             df = df.filter(pl.col("submission_type") == "ORIG")
 
-            # Force ApplNo to string (handling potential int inference)
-            # 000004 (int 4) -> "4".
-            # 000004 (str "000004") -> "000004".
-            # To normalize, we should pad it?
-            # normalize_ids in transform.py pads to 6.
-            # We should probably normalize here too to ensure keys match.
-            # But wait, Silver logic calls `normalize_ids` LATER.
-            # If we normalize here, we get "000004".
-            # If Products is int 4, we need to normalize that before join too.
-            # Let's normalize ApplNo to padded string HERE and in Products before join.
             df = df.with_columns(pl.col("appl_no").cast(pl.String).str.pad_start(6, "0"))
 
-            # FIX: Ensure proper sorting of dates (ISO vs Legacy String)
-            # Create a temporary column 'sort_date' by applying fix_dates logic
-            # Duplicate the column so fix_dates doesn't mutate the original we want to return
             df = df.with_columns(pl.col("submission_status_date").alias("sort_date"))
             df = fix_dates(df, ["sort_date"])
 
-            # Now sort by the parsed Date object
             df = df.sort("sort_date")
 
-            # Deduplicate keeping the earliest (first)
+            # Unique on subset in lazy mode
             df = df.unique(subset=["appl_no"], keep="first")
 
-            rows = df.select(["appl_no", "submission_status_date"]).to_dicts()
+            # Finally collect
+            rows = df.select(["appl_no", "submission_status_date"]).collect().to_dicts()
             return {row["appl_no"]: row["submission_status_date"] for row in rows if row["submission_status_date"]}
 
 
-def _create_silver_dataframe(zip_content: bytes) -> pl.DataFrame:
-    """Creates the Silver Products DataFrame (shared logic for Silver and Gold)."""
-    # 1. Pre-fetch approval dates
+def _create_silver_dataframe(zip_content: bytes) -> pl.LazyFrame:
+    """
+    Creates the Silver Products DataFrame (shared logic for Silver and Gold).
+    Returns a LazyFrame to allow further lazy operations or optimization before collection.
+    """
+    # 1. Pre-fetch approval dates (this part collects internally)
     approval_map = _extract_approval_dates(zip_content)
 
     # 2. Read Products
     with zipfile.ZipFile(io.BytesIO(zip_content)) as z:
         if "Products.txt" not in z.namelist():
             # Return empty schema if Products is missing
-            return pl.DataFrame()
+            return pl.DataFrame().lazy()
 
         with z.open("Products.txt") as f:
-            df = _read_csv_bytes(f.read())
-            df = _clean_dataframe(df)
-
-    if df.is_empty():
-        return pl.DataFrame()
+            df_eager = _read_csv_bytes(f.read())
+            if df_eager.is_empty():
+                # Return empty LazyFrame with expected Silver schema to prevent downstream failures
+                return pl.DataFrame(
+                    schema={
+                        "appl_no": pl.String,
+                        "product_no": pl.String,
+                        "form": pl.String,
+                        "strength": pl.String,
+                        "active_ingredients_list": pl.List(pl.String),
+                        "original_approval_date": pl.Date,
+                        "is_historic_record": pl.Boolean,
+                        "coreason_id": pl.String,
+                        "source_id": pl.String,
+                        "hash_md5": pl.String,
+                        "drug_name": pl.String,
+                    }
+                ).lazy()
+            df = _clean_dataframe(df_eager).lazy()
 
     # 3. Normalize Products ApplNo for Join
     df = df.with_columns(pl.col("appl_no").cast(pl.String).str.pad_start(6, "0"))
 
     # 4. Join Approval Date
-    dates_df = pl.DataFrame(
+    # Create LazyFrame from the map
+    dates_df_eager = pl.DataFrame(
         {"appl_no": list(approval_map.keys()), "original_approval_date": list(approval_map.values())}
     )
-    # Ensure schema for empty map case
-    if dates_df.is_empty():
-        dates_df = pl.DataFrame(schema={"appl_no": pl.String, "original_approval_date": pl.String})
+    if dates_df_eager.is_empty():
+        dates_df_eager = pl.DataFrame(schema={"appl_no": pl.String, "original_approval_date": pl.String})
     else:
-        dates_df = dates_df.with_columns(pl.col("appl_no").cast(pl.String))
+        dates_df_eager = dates_df_eager.with_columns(pl.col("appl_no").cast(pl.String))
+
+    dates_df = dates_df_eager.lazy()
 
     df = df.join(dates_df, on="appl_no", how="left")
 
@@ -181,10 +182,11 @@ def _create_silver_dataframe(zip_content: bytes) -> pl.DataFrame:
     df = fix_dates(df, ["original_approval_date"])
 
     # Explicitly fill nulls for string fields required by Pydantic model
-    # "form" and "strength" are required str, so null must be "".
-    if "form" in df.columns:
+    cols = df.collect_schema().names()
+
+    if "form" in cols:
         df = df.with_columns(pl.col("form").fill_null(""))
-    if "strength" in df.columns:
+    if "strength" in cols:
         df = df.with_columns(pl.col("strength").fill_null(""))
 
     df = generate_coreason_id(df)
@@ -241,7 +243,10 @@ def drugs_fda_source(base_url: str = "https://www.fda.gov/media/89850/download")
         )
         def silver_products_resource(z_content: bytes = zip_bytes) -> Iterator[ProductSilver]:
             logger.info("Generating Silver Products layer...")
-            df = _create_silver_dataframe(z_content)
+            df_lazy = _create_silver_dataframe(z_content)
+
+            # Collect before iteration
+            df = df_lazy.collect()
 
             # Validate rows against Pydantic model
             for row in df.to_dicts():
@@ -257,10 +262,6 @@ def drugs_fda_source(base_url: str = "https://www.fda.gov/media/89850/download")
         yield silver_products_resource()
 
     # 3. Yield Gold Products Resource
-    # Depends on Products, Applications, MarketingStatus, TE, Exclusivity (optional?), Submissions
-    # Check if we have minimal files (Products+Submissions is baseline Silver, plus Applications etc.)
-    # If some auxiliary files missing, we can still produce Gold with nulls?
-    # BRD says "Left Join", so yes.
     if "Products.txt" in files_present:
 
         @dlt.resource(  # type: ignore[misc]
@@ -268,178 +269,147 @@ def drugs_fda_source(base_url: str = "https://www.fda.gov/media/89850/download")
         )
         def gold_products_resource(z_content: bytes = zip_bytes) -> Iterator[ProductGold]:
             logger.info("Generating Gold Products layer...")
-            # Get Base Silver Data
-            silver_df = _create_silver_dataframe(z_content)
-            if silver_df.is_empty():
-                return
+            # Get Base Silver Data (Lazy)
+            silver_df_lazy = _create_silver_dataframe(z_content)
+            # We will continue building lazily where possible
 
             # Helper to read file if exists, else empty
-            def get_df(fname: str) -> pl.DataFrame:
+            def get_df_lazy(fname: str) -> pl.LazyFrame:
                 with zipfile.ZipFile(io.BytesIO(z_content)) as z:
                     if fname not in z.namelist():
-                        return pl.DataFrame()
+                        return pl.DataFrame().lazy()
                     with z.open(fname) as f:
-                        return _clean_dataframe(_read_csv_bytes(f.read()))
+                        eager = _read_csv_bytes(f.read())
+                        if eager.is_empty():
+                            return pl.DataFrame().lazy()
+                        return _clean_dataframe(eager).lazy()
 
             # Read Aux Files
-            df_apps = get_df("Applications.txt")
-            df_marketing = get_df("MarketingStatus.txt")
-            df_te = get_df("TE.txt")
-            df_exclusivity = get_df("Exclusivity.txt")
+            df_apps = get_df_lazy("Applications.txt")
+            df_marketing = get_df_lazy("MarketingStatus.txt")
+            df_te = get_df_lazy("TE.txt")
+            df_exclusivity = get_df_lazy("Exclusivity.txt")
+
+            # Helper to check cols on LazyFrame safely
+            def has_col(ldf: pl.LazyFrame, col: str) -> bool:
+                return col in ldf.collect_schema().names()
 
             # Normalize Keys in Aux Files
-            # Applications: appl_no
-            if "appl_no" in df_apps.columns:
+            if has_col(df_apps, "appl_no"):
                 df_apps = df_apps.with_columns(pl.col("appl_no").cast(pl.String).str.pad_start(6, "0"))
 
-            # MarketingStatus: appl_no, product_no
-            if "appl_no" in df_marketing.columns:
+            if has_col(df_marketing, "appl_no"):
                 df_marketing = df_marketing.with_columns(pl.col("appl_no").cast(pl.String).str.pad_start(6, "0"))
-            if "product_no" in df_marketing.columns:
+            if has_col(df_marketing, "product_no"):
                 df_marketing = df_marketing.with_columns(pl.col("product_no").cast(pl.String).str.pad_start(3, "0"))
 
-            # TE: appl_no, product_no
-            if "appl_no" in df_te.columns:
+            if has_col(df_te, "appl_no"):
                 df_te = df_te.with_columns(pl.col("appl_no").cast(pl.String).str.pad_start(6, "0"))
-            if "product_no" in df_te.columns:
+            if has_col(df_te, "product_no"):
                 df_te = df_te.with_columns(pl.col("product_no").cast(pl.String).str.pad_start(3, "0"))
 
-            # Exclusivity: appl_no, product_no
-            if "appl_no" in df_exclusivity.columns:
+            if has_col(df_exclusivity, "appl_no"):
                 df_exclusivity = df_exclusivity.with_columns(pl.col("appl_no").cast(pl.String).str.pad_start(6, "0"))
-            if "product_no" in df_exclusivity.columns:
+            if has_col(df_exclusivity, "product_no"):
                 df_exclusivity = df_exclusivity.with_columns(pl.col("product_no").cast(pl.String).str.pad_start(3, "0"))
 
-            # 1. Join Applications (SponsorName, ApplType)
-            # We select only needed columns to avoid collisions
-            if "sponsor_name" in df_apps.columns:
-                # Need appl_no for join
+            # 1. Join Applications
+            if has_col(df_apps, "sponsor_name"):
                 cols = ["appl_no", "sponsor_name"]
-                if "appl_type" in df_apps.columns:
+                if has_col(df_apps, "appl_type"):
                     cols.append("appl_type")
-                df_apps_sub = df_apps.select(cols).unique(
-                    subset=["appl_no"]
-                )  # Ensure 1:1 or handle dupes? Applications are 1 per ApplNo usually?
-                silver_df = silver_df.join(df_apps_sub, on="appl_no", how="left")
+                df_apps_sub = df_apps.select(cols).unique(subset=["appl_no"])
+                silver_df_lazy = silver_df_lazy.join(df_apps_sub, on="appl_no", how="left")
             else:
-                silver_df = silver_df.with_columns(
+                silver_df_lazy = silver_df_lazy.with_columns(
                     [pl.lit(None).alias("sponsor_name"), pl.lit(None).alias("appl_type")]
                 )
 
-            # 2. Join MarketingStatus (MarketingStatusID)
-            if "marketing_status_id" in df_marketing.columns:
+            # 2. Join MarketingStatus
+            if has_col(df_marketing, "marketing_status_id"):
                 df_marketing_sub = df_marketing.select(["appl_no", "product_no", "marketing_status_id"]).unique(
                     subset=["appl_no", "product_no"]
                 )
-                silver_df = silver_df.join(df_marketing_sub, on=["appl_no", "product_no"], how="left")
+                silver_df_lazy = silver_df_lazy.join(df_marketing_sub, on=["appl_no", "product_no"], how="left")
             else:
-                silver_df = silver_df.with_columns(pl.lit(None).alias("marketing_status_id"))
+                silver_df_lazy = silver_df_lazy.with_columns(pl.lit(None).alias("marketing_status_id"))
 
-            # 2.5. Join MarketingStatus_Lookup (Description)
-            df_marketing_lookup = get_df("MarketingStatus_Lookup.txt")
-            if (
-                "marketing_status_id" in df_marketing_lookup.columns
-                and "marketing_status_description" in df_marketing_lookup.columns
+            # 2.5. Join MarketingStatus_Lookup
+            df_marketing_lookup = get_df_lazy("MarketingStatus_Lookup.txt")
+            if has_col(df_marketing_lookup, "marketing_status_id") and has_col(
+                df_marketing_lookup, "marketing_status_description"
             ):
-                # Ensure join key types match (Int64)
                 df_marketing_lookup = df_marketing_lookup.with_columns(
                     pl.col("marketing_status_id").cast(pl.Int64, strict=False)
                 )
-                if "marketing_status_id" in silver_df.columns:
-                    silver_df = silver_df.with_columns(pl.col("marketing_status_id").cast(pl.Int64, strict=False))
+                if "marketing_status_id" in silver_df_lazy.collect_schema().names():
+                    silver_df_lazy = silver_df_lazy.with_columns(
+                        pl.col("marketing_status_id").cast(pl.Int64, strict=False)
+                    )
 
                     df_lookup_sub = df_marketing_lookup.select(
                         ["marketing_status_id", "marketing_status_description"]
                     ).unique(subset=["marketing_status_id"])
 
-                    silver_df = silver_df.join(df_lookup_sub, on="marketing_status_id", how="left")
+                    silver_df_lazy = silver_df_lazy.join(df_lookup_sub, on="marketing_status_id", how="left")
             else:
-                silver_df = silver_df.with_columns(pl.lit(None).alias("marketing_status_description"))
+                silver_df_lazy = silver_df_lazy.with_columns(pl.lit(None).alias("marketing_status_description"))
 
-            # 3. Join TE (TECode)
-            if "te_code" in df_te.columns:
+            # 3. Join TE
+            if has_col(df_te, "te_code"):
                 df_te_sub = df_te.select(["appl_no", "product_no", "te_code"]).unique(subset=["appl_no", "product_no"])
-                silver_df = silver_df.join(df_te_sub, on=["appl_no", "product_no"], how="left")
+                silver_df_lazy = silver_df_lazy.join(df_te_sub, on=["appl_no", "product_no"], how="left")
             else:
-                silver_df = silver_df.with_columns(pl.lit(None).alias("te_code"))
+                silver_df_lazy = silver_df_lazy.with_columns(pl.lit(None).alias("te_code"))
 
-            # 4. Exclusivity Logic (is_protected)
-            # Logic: True if current_date < Max(ExclusivityDate)
-            # We need to aggregate Exclusivity by ApplNo+ProductNo first.
-            if "exclusivity_date" in df_exclusivity.columns:
-                # Convert to date
+            # 4. Exclusivity
+            if has_col(df_exclusivity, "exclusivity_date"):
                 df_exclusivity = fix_dates(df_exclusivity, ["exclusivity_date"])
-
-                # Group by and get max date
                 df_excl_agg = df_exclusivity.group_by(["appl_no", "product_no"]).agg(
                     pl.col("exclusivity_date").max().alias("max_exclusivity_date")
                 )
-
-                silver_df = silver_df.join(df_excl_agg, on=["appl_no", "product_no"], how="left")
-
-                # Check protection
-                # We need current date. In pipeline, this is execution date.
-                # For reproducibility/testing, we might want to pass it or use today.
+                silver_df_lazy = silver_df_lazy.join(df_excl_agg, on=["appl_no", "product_no"], how="left")
                 today = date.today()
-
-                # If max_exclusivity_date > today -> True
-                silver_df = silver_df.with_columns(
+                silver_df_lazy = silver_df_lazy.with_columns(
                     pl.when(pl.col("max_exclusivity_date") > today).then(True).otherwise(False).alias("is_protected")
                 )
             else:
-                silver_df = silver_df.with_columns(pl.lit(False).alias("is_protected"))
+                silver_df_lazy = silver_df_lazy.with_columns(pl.lit(False).alias("is_protected"))
 
             # 5. Derive is_generic
-            # True if ApplType == 'A' (ANDA), False if ApplType == 'N' (NDA).
-            # Note: ApplType column might be missing if apps join failed
-            if "appl_type" in silver_df.columns:
-                silver_df = silver_df.with_columns((pl.col("appl_type") == "A").fill_null(False).alias("is_generic"))
+            if "appl_type" in silver_df_lazy.collect_schema().names():
+                silver_df_lazy = silver_df_lazy.with_columns(
+                    (pl.col("appl_type") == "A").fill_null(False).alias("is_generic")
+                )
             else:
-                silver_df = silver_df.with_columns(pl.lit(False).alias("is_generic"))
+                silver_df_lazy = silver_df_lazy.with_columns(pl.lit(False).alias("is_generic"))
 
             # 6. Derive search_vector
-            # Concatenated string of DrugName + ActiveIngredient + SponsorName + TECode.
-            # DrugName should be in Products (silver_df source).
-            # ActiveIngredient is active_ingredients_list (List[str]).
-            # SponsorName and TECode from joins.
-            # We need to handle nulls and convert list to string.
-
-            # Ensure columns exist or lit("")
             search_components = []
+            final_cols = silver_df_lazy.collect_schema().names()
 
-            # DrugName (check if exists, snake_case)
-            if "drug_name" in silver_df.columns:
+            if "drug_name" in final_cols:
                 search_components.append(pl.col("drug_name").fill_null(""))
             else:
                 search_components.append(pl.lit(""))
 
-            # ActiveIngredient (List[str]) -> join with space
-            # clean_ingredients ensures `active_ingredients_list` always exists in silver_df
             search_components.append(pl.col("active_ingredients_list").list.join(" ").fill_null(""))
-
-            # SponsorName
-            # logic above ensures sponsor_name exists (joined or created as null)
             search_components.append(pl.col("sponsor_name").fill_null(""))
-
-            # TECode
-            # logic above ensures te_code exists (joined or created as null)
             search_components.append(pl.col("te_code").fill_null(""))
 
-            silver_df = silver_df.with_columns(
+            silver_df_lazy = silver_df_lazy.with_columns(
                 pl.concat_str(search_components, separator=" ").str.strip_chars().alias("search_vector")
             )
-            # Upper case search_vector for consistency? BRD doesn't specify case, but search vectors usually upper.
-            # ActiveIngredients are already upper. DrugName might not be.
-            # Let's uppercase it.
-            silver_df = silver_df.with_columns(pl.col("search_vector").str.to_uppercase())
+            silver_df_lazy = silver_df_lazy.with_columns(pl.col("search_vector").str.to_uppercase())
 
-            # Fill Nones for optional fields that might be missing after join
-            # Pydantic Optional handles None, but Polars might have Nulls.
-            # to_dicts() handles it.
+            if "marketing_status_id" in final_cols:
+                silver_df_lazy = silver_df_lazy.with_columns(pl.col("marketing_status_id").cast(pl.Int64, strict=False))
 
-            # Cast marketing_status_id to int if possible (it's ID)
-            if "marketing_status_id" in silver_df.columns:
-                silver_df = silver_df.with_columns(pl.col("marketing_status_id").cast(pl.Int64, strict=False))
+            # Final Collect
+            silver_df = silver_df_lazy.collect()
+
+            if silver_df.is_empty():
+                return
 
             for row in silver_df.to_dicts():
                 yield ProductGold(**row)
