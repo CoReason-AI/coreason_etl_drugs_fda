@@ -91,7 +91,7 @@ def test_transform_null_handling() -> None:
 
     # 1. normalize_ids
     # Should handle None. Padded strings of null usually become null or "00null"?
-    # pl.col().cast(pl.Utf8) converts None to null. str.pad_start on null results in null.
+    # pl.col().cast(pl.String) converts None to null. str.pad_start on null results in null.
     res_ids = normalize_ids(df)
     assert res_ids["appl_no"][0] is None
     assert res_ids["appl_no"][1] == "000123"

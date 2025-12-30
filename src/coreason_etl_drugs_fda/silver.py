@@ -60,8 +60,8 @@ def generate_coreason_id(df: pl.DataFrame) -> pl.DataFrame:
 
     df = df.with_columns(
         pl.struct(["appl_no", "product_no"])
-        .map_elements(_create_uuid, return_dtype=pl.Utf8)
-        .cast(pl.Utf8)  # Ensure it's string (Utf8 is safer for transport)
+        .map_elements(_create_uuid, return_dtype=pl.String)
+        .cast(pl.String)  # Ensure it's string (String is safer for transport)
         .alias("coreason_id")
     )
     return df
@@ -73,7 +73,7 @@ def generate_row_hash(df: pl.DataFrame) -> pl.DataFrame:
     This is a simplified implementation hashing the concatenation of all columns as string.
     """
     # Concatenate all column values as string and hash
-    # We must cast all columns to Utf8 first, especially lists.
+    # We must cast all columns to String first, especially lists.
 
     exprs = []
     for col_name in df.columns:
@@ -81,9 +81,9 @@ def generate_row_hash(df: pl.DataFrame) -> pl.DataFrame:
         if isinstance(dtype, pl.List):
             # Convert list to string representation: join elements with ;
             # Ensure elements are strings before joining
-            expr = pl.col(col_name).list.eval(pl.element().cast(pl.Utf8)).list.join(";")
+            expr = pl.col(col_name).list.eval(pl.element().cast(pl.String)).list.join(";")
         else:
-            expr = pl.col(col_name).cast(pl.Utf8)
+            expr = pl.col(col_name).cast(pl.String)
 
         # Fill nulls with empty string to ensure concatenation doesn't result in null
         expr = expr.fill_null("")
@@ -91,7 +91,7 @@ def generate_row_hash(df: pl.DataFrame) -> pl.DataFrame:
 
     df = df.with_columns(
         pl.concat_str(exprs, separator="|")
-        .map_elements(lambda x: hashlib.md5(x.encode()).hexdigest(), return_dtype=pl.Utf8)
+        .map_elements(lambda x: hashlib.md5(x.encode()).hexdigest(), return_dtype=pl.String)
         .alias("hash_md5")
     )
     return df
