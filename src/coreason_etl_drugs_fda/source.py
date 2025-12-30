@@ -93,7 +93,7 @@ def _read_file_from_zip(zip_content: bytes, filename: str) -> Iterator[List[Dict
             # Since we pass DF, we get DF back.
             if isinstance(df, pl.LazyFrame):
                 # Should not happen given input is DataFrame, but for type safety if logic changes
-                df = df.collect()
+                df = df.collect()  # pragma: no cover
             yield df.to_dicts()
 
 
