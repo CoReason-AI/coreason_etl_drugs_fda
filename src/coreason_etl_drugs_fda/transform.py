@@ -9,24 +9,30 @@
 # Source Code: https://github.com/CoReason-AI/coreason_etl_drugs_fda
 
 from datetime import date
+from typing import Union
 
 import polars as pl
 
 
-def normalize_ids(df: pl.DataFrame) -> pl.DataFrame:
+def normalize_ids(df: Union[pl.DataFrame, pl.LazyFrame]) -> Union[pl.DataFrame, pl.LazyFrame]:
     """
     Pads ApplNo to 6 digits and ProductNo to 3 digits.
     Handles both integer and string inputs.
     """
-    if "appl_no" in df.columns:
+    if isinstance(df, pl.LazyFrame):
+        cols = df.collect_schema().names()
+    else:
+        cols = df.columns
+
+    if "appl_no" in cols:
         df = df.with_columns(pl.col("appl_no").cast(pl.String).str.pad_start(6, "0"))
 
-    if "product_no" in df.columns:
+    if "product_no" in cols:
         df = df.with_columns(pl.col("product_no").cast(pl.String).str.pad_start(3, "0"))
     return df
 
 
-def fix_dates(df: pl.DataFrame, date_cols: list[str]) -> pl.DataFrame:
+def fix_dates(df: Union[pl.DataFrame, pl.LazyFrame], date_cols: list[str]) -> Union[pl.DataFrame, pl.LazyFrame]:
     """
     Handles legacy string "Approved prior to Jan 1, 1982".
     Logic: If value == "Approved prior to Jan 1, 1982", set approval_date = 1982-01-01
@@ -35,12 +41,19 @@ def fix_dates(df: pl.DataFrame, date_cols: list[str]) -> pl.DataFrame:
     legacy_str = "Approved prior to Jan 1, 1982"
     legacy_date = date(1982, 1, 1)
 
+    if isinstance(df, pl.LazyFrame):
+        schema = df.collect_schema()
+        cols = schema.names()
+    else:
+        schema = df.schema
+        cols = df.columns
+
     for col in date_cols:
-        if col not in df.columns:
+        if col not in cols:
             continue
 
         # Check if column is string type, otherwise we can't check for the legacy string
-        if df.schema[col] == pl.String:
+        if schema[col] == pl.String:
             is_legacy = pl.col(col) == legacy_str
 
             df = df.with_columns(
@@ -58,14 +71,19 @@ def fix_dates(df: pl.DataFrame, date_cols: list[str]) -> pl.DataFrame:
     return df
 
 
-def clean_ingredients(df: pl.DataFrame) -> pl.DataFrame:
+def clean_ingredients(df: Union[pl.DataFrame, pl.LazyFrame]) -> Union[pl.DataFrame, pl.LazyFrame]:
     """
     Splits ActiveIngredient by semicolon, upper-cases, and trims whitespace.
     Ensures 'active_ingredients_list' column always exists (as empty list if missing input).
     Strictly removes 'active_ingredient' column.
     Handles null values by converting them to empty lists.
     """
-    if "active_ingredient" in df.columns:
+    if isinstance(df, pl.LazyFrame):
+        cols = df.collect_schema().names()
+    else:
+        cols = df.columns
+
+    if "active_ingredient" in cols:
         df = df.with_columns(
             pl.col("active_ingredient")
             .str.to_uppercase()
@@ -83,10 +101,15 @@ def clean_ingredients(df: pl.DataFrame) -> pl.DataFrame:
     return df
 
 
-def clean_form(df: pl.DataFrame) -> pl.DataFrame:
+def clean_form(df: Union[pl.DataFrame, pl.LazyFrame]) -> Union[pl.DataFrame, pl.LazyFrame]:
     """
     Converts the 'form' column to Title Case.
     """
-    if "form" in df.columns:
+    if isinstance(df, pl.LazyFrame):
+        cols = df.collect_schema().names()
+    else:
+        cols = df.columns
+
+    if "form" in cols:
         df = df.with_columns(pl.col("form").str.to_titlecase())
     return df
