@@ -18,11 +18,11 @@ import dlt
 import polars as pl
 import requests  # type: ignore[import-untyped]
 from dlt.sources import DltResource
-from loguru import logger
 
 from coreason_etl_drugs_fda.gold import ProductGold
 from coreason_etl_drugs_fda.silver import ProductSilver, generate_coreason_id, generate_row_hash
 from coreason_etl_drugs_fda.transform import clean_form, clean_ingredients, fix_dates, normalize_ids
+from coreason_etl_drugs_fda.utils.logger import logger
 
 # List of files to extract from the FDA ZIP archive
 TARGET_FILES = [
