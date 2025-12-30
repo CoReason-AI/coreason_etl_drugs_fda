@@ -27,7 +27,7 @@ def create_pipeline(destination: str = "duckdb", dataset_name: str = "fda_data")
     return pipeline
 
 
-@logger.catch
+@logger.catch  # type: ignore[misc]
 def run_pipeline() -> None:
     """
     Main entry point to run the pipeline.
