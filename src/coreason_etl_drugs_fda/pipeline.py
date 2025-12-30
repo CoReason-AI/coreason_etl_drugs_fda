@@ -9,9 +9,9 @@
 # Source Code: https://github.com/CoReason-AI/coreason_etl_drugs_fda
 
 import dlt
-from loguru import logger
 
 from coreason_etl_drugs_fda.source import drugs_fda_source
+from coreason_etl_drugs_fda.utils.logger import logger
 
 
 def create_pipeline(destination: str = "duckdb", dataset_name: str = "fda_data") -> dlt.Pipeline:
@@ -27,10 +27,12 @@ def create_pipeline(destination: str = "duckdb", dataset_name: str = "fda_data")
     return pipeline
 
 
+@logger.catch  # type: ignore[misc]
 def run_pipeline() -> None:
     """
     Main entry point to run the pipeline.
     """
+    logger.info("Starting Pipeline Execution")
     pipeline = create_pipeline()
 
     # The source now includes both Raw (Bronze) and Silver resources
