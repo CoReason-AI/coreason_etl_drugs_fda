@@ -19,10 +19,10 @@ def normalize_ids(df: pl.DataFrame) -> pl.DataFrame:
     Handles both integer and string inputs.
     """
     if "appl_no" in df.columns:
-        df = df.with_columns(pl.col("appl_no").cast(pl.Utf8).str.pad_start(6, "0"))
+        df = df.with_columns(pl.col("appl_no").cast(pl.String).str.pad_start(6, "0"))
 
     if "product_no" in df.columns:
-        df = df.with_columns(pl.col("product_no").cast(pl.Utf8).str.pad_start(3, "0"))
+        df = df.with_columns(pl.col("product_no").cast(pl.String).str.pad_start(3, "0"))
     return df
 
 
@@ -40,7 +40,7 @@ def fix_dates(df: pl.DataFrame, date_cols: list[str]) -> pl.DataFrame:
             continue
 
         # Check if column is string type, otherwise we can't check for the legacy string
-        if df.schema[col] == pl.Utf8:
+        if df.schema[col] == pl.String:
             is_legacy = pl.col(col) == legacy_str
 
             df = df.with_columns(
@@ -71,14 +71,14 @@ def clean_ingredients(df: pl.DataFrame) -> pl.DataFrame:
             .str.to_uppercase()
             .str.split(";")
             .list.eval(pl.element().str.strip_chars())
-            .fill_null(pl.lit([], dtype=pl.List(pl.Utf8)))  # Ensure nulls become typed empty lists
+            .fill_null(pl.lit([], dtype=pl.List(pl.String)))  # Ensure nulls become typed empty lists
             .alias("active_ingredients_list")
         )
         # Drop the original column
         df = df.drop("active_ingredient")
     else:
-        # Create empty list column if input missing, explicitly typed as List[Utf8]
-        df = df.with_columns(pl.lit([], dtype=pl.List(pl.Utf8)).alias("active_ingredients_list"))
+        # Create empty list column if input missing, explicitly typed as List[String]
+        df = df.with_columns(pl.lit([], dtype=pl.List(pl.String)).alias("active_ingredients_list"))
 
     return df
 

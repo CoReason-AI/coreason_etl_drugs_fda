@@ -110,7 +110,7 @@ def test_null_keys_in_source() -> None:
 
         # We expect at least the valid row.
         # The null row:
-        # ApplNo -> cast(Utf8) -> null/empty string.
+        # ApplNo -> cast(String) -> null/empty string.
         # pad_start(6, "0") -> "000000" (if empty string) or null (if null)?
         # If CSV reader treats empty field as null, pad_start on null is null.
         # If it treats as empty string "", pad_start is "000000".
