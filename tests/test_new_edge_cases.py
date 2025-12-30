@@ -172,3 +172,44 @@ def test_source_id_validation() -> None:
             original_approval_date=None,
             hash_md5="hash",
         )
+
+
+def test_duplicate_orig_submissions_selection() -> None:
+    """
+    Test that when multiple 'ORIG' submissions exist for a single ApplNo,
+    the pipeline selects the EARLIEST date.
+    """
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as z:
+        z.writestr(
+            "Products.txt",
+            "ApplNo\tProductNo\tForm\tStrength\tActiveIngredient\n000001\t001\tTab\t10mg\tIng1\n",
+        )
+        # Three ORIG submissions:
+        # 1. 2022-01-01 (Latest)
+        # 2. 2020-01-01 (Earliest) -> Target
+        # 3. 2021-01-01 (Middle)
+        # Order in file shouldn't matter if we sort correctly.
+        z.writestr(
+            "Submissions.txt",
+            "ApplNo\tSubmissionType\tSubmissionStatusDate\n"
+            "000001\tORIG\t2022-01-01\n"
+            "000001\tORIG\t2020-01-01\n"
+            "000001\tORIG\t2021-01-01\n",
+        )
+
+    buffer.seek(0)
+    with patch("requests.get") as mock_get:
+        mock_response = MagicMock()
+        mock_response.content = buffer.getvalue()
+        mock_response.raise_for_status.return_value = None
+        mock_get.return_value = mock_response
+
+        source = drugs_fda_source()
+        silver_prods = list(source.resources["silver_products"])
+
+        assert len(silver_prods) == 1
+        row = silver_prods[0]
+
+        # Should be 2020-01-01
+        assert row.original_approval_date == date(2020, 1, 1)
