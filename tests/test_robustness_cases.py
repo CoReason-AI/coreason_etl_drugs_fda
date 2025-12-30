@@ -13,9 +13,10 @@ import zipfile
 from unittest.mock import MagicMock, patch
 
 import pytest
-from coreason_etl_drugs_fda.source import drugs_fda_source
 from dlt.extract.exceptions import ResourceExtractionError
 from polars.exceptions import ColumnNotFoundError
+
+from coreason_etl_drugs_fda.source import drugs_fda_source
 
 
 def test_empty_input_file_handling() -> None:
