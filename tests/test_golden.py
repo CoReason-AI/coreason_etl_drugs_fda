@@ -14,7 +14,6 @@ from datetime import date
 from unittest.mock import MagicMock, patch
 
 import polars as pl
-
 from coreason_etl_drugs_fda.source import drugs_fda_source
 
 

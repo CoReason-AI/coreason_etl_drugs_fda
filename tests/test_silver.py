@@ -12,9 +12,8 @@ import uuid
 
 import polars as pl
 import pytest
-from pydantic import ValidationError
-
 from coreason_etl_drugs_fda.silver import NAMESPACE_FDA, ProductSilver, generate_coreason_id, generate_row_hash
+from pydantic import ValidationError
 
 
 def test_generate_coreason_id() -> None:
