@@ -13,8 +13,6 @@ import zipfile
 from unittest.mock import MagicMock, patch
 
 import pytest
-from dlt.extract.exceptions import ResourceExtractionError
-from polars.exceptions import ColumnNotFoundError
 
 from coreason_etl_drugs_fda.source import drugs_fda_source
 
@@ -74,13 +72,13 @@ def test_missing_required_columns() -> None:
 
         # Silver resource logic tries to cast ApplNo.
         # If ApplNo is missing, Polars will raise `ColumnNotFoundError`.
-        # The current implementation does not explicitly check for existence before casting
-        # in `_create_silver_dataframe`.
-        # However, `dlt` pipeline might catch it or it crashes.
-        # We expect a crash or handled error.
+        # The new implementation explicitly checks for existence before casting
+        # in `prepare_silver_products` and returns an empty frame if missing.
+        # So it should NOT crash, but yield 0 rows (or empty list).
 
-        with pytest.raises((ColumnNotFoundError, KeyError, ResourceExtractionError, Exception)):
-            list(source.resources["silver_products"])
+        resources = list(source.resources["silver_products"])
+        # Expect 0 rows because required key is missing
+        assert len(resources) == 0
 
 
 def test_null_keys_in_source() -> None:
