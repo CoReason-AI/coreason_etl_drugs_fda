@@ -25,10 +25,14 @@ def normalize_ids(df: Union[pl.DataFrame, pl.LazyFrame]) -> Union[pl.DataFrame, 
         cols = df.columns
 
     if "appl_no" in cols:
-        df = df.with_columns(pl.col("appl_no").cast(pl.String).str.pad_start(6, "0"))
+        df = df.with_columns(
+            pl.col("appl_no").cast(pl.String).str.strip_chars().replace("", None).str.pad_start(6, "0")
+        )
 
     if "product_no" in cols:
-        df = df.with_columns(pl.col("product_no").cast(pl.String).str.pad_start(3, "0"))
+        df = df.with_columns(
+            pl.col("product_no").cast(pl.String).str.strip_chars().replace("", None).str.pad_start(3, "0")
+        )
     return df
 
 
@@ -89,6 +93,7 @@ def clean_ingredients(df: Union[pl.DataFrame, pl.LazyFrame]) -> Union[pl.DataFra
             .str.to_uppercase()
             .str.split(";")
             .list.eval(pl.element().str.strip_chars())
+            .list.eval(pl.element().filter(pl.element().str.len_bytes() > 0))  # Filter out empty strings from the list
             .fill_null(pl.lit([], dtype=pl.List(pl.String)))  # Ensure nulls become typed empty lists
             .alias("active_ingredients_list")
         )
