@@ -419,6 +419,6 @@ def test_ingredients_complex_formatting() -> None:
 
     assert "INGREDIENT A" in ingredients
     assert "INGREDIENT B" in ingredients
-    # Current logic splits by ';', so trailing ';' produces an empty string at the end.
-    # We verify this behavior.
-    assert "" in ingredients
+    # New logic filters out empty strings.
+    assert "" not in ingredients
+    assert len(ingredients) == 2

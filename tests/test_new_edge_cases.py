@@ -114,13 +114,13 @@ def test_active_ingredients_formatting_edge_cases() -> None:
 
     # Row 1: "" -> [""] (Polars split behavior on empty string usually returns [""] or [])
     # pl.lit("").str.split(";") -> [""]
-    assert res["active_ingredients_list"][0].to_list() == [""]
+    assert res["active_ingredients_list"][0].to_list() == []
 
     # Row 2: ";;" -> ["", "", ""]
-    assert res["active_ingredients_list"][1].to_list() == ["", "", ""]
+    assert res["active_ingredients_list"][1].to_list() == []
 
     # Row 3: " ; " -> split -> [" ", " "] -> strip -> ["", ""]
-    assert res["active_ingredients_list"][2].to_list() == ["", ""]
+    assert res["active_ingredients_list"][2].to_list() == []
 
 
 def test_source_id_validation() -> None:

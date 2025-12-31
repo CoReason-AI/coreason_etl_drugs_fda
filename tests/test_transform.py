@@ -33,6 +33,25 @@ def test_normalize_ids() -> None:
     assert result_str["product_no"][1] == "002"
 
 
+def test_normalize_ids_empty_strings() -> None:
+    """Test that empty strings or whitespace become nulls, not '000000'."""
+    df = pl.DataFrame({"appl_no": ["", "   ", None, "123"], "product_no": ["", " ", None, "1"]})
+
+    result = normalize_ids(df)
+
+    # Check appl_no
+    assert result["appl_no"][0] is None
+    assert result["appl_no"][1] is None
+    assert result["appl_no"][2] is None
+    assert result["appl_no"][3] == "000123"
+
+    # Check product_no
+    assert result["product_no"][0] is None
+    assert result["product_no"][1] is None
+    assert result["product_no"][2] is None
+    assert result["product_no"][3] == "001"
+
+
 def test_fix_dates() -> None:
     legacy = "Approved prior to Jan 1, 1982"
     df = pl.DataFrame({"approval_date": [legacy, "2023-01-01", "invalid"], "other_col": [1, 2, 3]})
@@ -105,6 +124,21 @@ def test_clean_ingredients_null_values() -> None:
     # We now expect empty list for null input
     assert result["active_ingredients_list"][0].to_list() == []
     assert result["active_ingredients_list"][1].to_list() == ["A", "B"]
+
+
+def test_clean_ingredients_empty_strings() -> None:
+    """Test that empty strings result in empty lists, not ['']."""
+    df = pl.DataFrame({"active_ingredient": ["", "  ", "A; ;B", ";"]})
+    result = clean_ingredients(df)
+
+    # "" -> split -> [""] -> filter len>0 -> []
+    assert result["active_ingredients_list"][0].to_list() == []
+    # "  " -> split -> ["  "] -> strip -> [""] -> filter -> []
+    assert result["active_ingredients_list"][1].to_list() == []
+    # "A; ;B" -> split -> ["A", " ", "B"] -> strip -> ["A", "", "B"] -> filter -> ["A", "B"]
+    assert result["active_ingredients_list"][2].to_list() == ["A", "B"]
+    # ";" -> split -> ["", ""] -> strip -> ["", ""] -> filter -> []
+    assert result["active_ingredients_list"][3].to_list() == []
 
 
 def test_clean_form() -> None:
