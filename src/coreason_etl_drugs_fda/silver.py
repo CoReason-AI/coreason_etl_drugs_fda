@@ -71,6 +71,7 @@ def generate_row_hash(df: Union[pl.DataFrame, pl.LazyFrame]) -> Union[pl.DataFra
     """
     Generates an MD5 hash of the row content for change detection.
     This is a simplified implementation hashing the concatenation of all columns as string.
+    Ensures column order stability by sorting column names.
     """
     # Concatenate all column values as string and hash
     # We must cast all columns to String first, especially lists.
@@ -84,6 +85,9 @@ def generate_row_hash(df: Union[pl.DataFrame, pl.LazyFrame]) -> Union[pl.DataFra
     else:
         schema = df.schema
         cols = df.columns
+
+    # Sort columns to ensure consistent hashing regardless of order
+    cols.sort()
 
     for col_name in cols:
         dtype = schema[col_name]
