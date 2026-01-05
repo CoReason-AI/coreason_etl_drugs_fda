@@ -12,6 +12,7 @@ import dlt
 
 from coreason_etl_drugs_fda.source import drugs_fda_source
 from coreason_etl_drugs_fda.utils.logger import logger
+from coreason_etl_drugs_fda.utils.medallion import organize_schemas
 
 
 def create_pipeline(destination: str = "duckdb", dataset_name: str = "fda_data") -> dlt.Pipeline:
@@ -40,6 +41,15 @@ def run_pipeline() -> None:
 
     info = pipeline.run(source)
     logger.info(info)
+
+    # Post-load Medallion Organization
+    if pipeline.destination.destination_name == "postgres":
+        organize_schemas(pipeline)
+    else:
+        logger.warning(
+            f"Skipping Medallion Organization: Destination is '{pipeline.destination.destination_name}', "
+            "not 'postgres'."
+        )
 
 
 if __name__ == "__main__":  # pragma: no cover
