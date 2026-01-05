@@ -90,6 +90,8 @@ def test_drugs_fda_source_extraction(mock_zip_content: bytes) -> None:
         assert row1.product_no == "004"
         # Check Date Join
         assert row1.original_approval_date == date(1982, 1, 1)
+        # Check Drug Name
+        assert row1.drug_name == "PAREDRINE"
         # Check Active Ingredient List
         assert row1.active_ingredients_list == ["HYDROXYAMPHETAMINE HYDROBROMIDE"]
         # Check UUID
@@ -267,7 +269,10 @@ def test_gold_products_logic() -> None:
         assert row1.marketing_status_id == 1
         assert row1.te_code is None  # Missing in TE
         # search_vector: DrugName + ActiveIngredient + SponsorName + TECode
-        # Products.txt didn't provide DrugName, so ""
+        # Products.txt didn't provide DrugName, so "" (but implicitly it has empty drug_name in this test case logic)
+        # Wait, previous test content for Products.txt: "000001\t001\tF\tS\tIng1..."
+        # It does NOT have DrugName column in the header string provided in THIS test function!
+        # So it will be missing.
         # Ing1 + SponsorA + ""
         # Note: join puts spaces. "" + Ing1 + SponsorA + "" -> "Ing1 SponsorA" (stripped)
         # Note: ActiveIngredient is uppercased in transformation!

@@ -26,6 +26,7 @@ class ProductGold(BaseModel):  # type: ignore[misc]
     product_no: str = Field(..., pattern=r"^\d{3}$")
     form: str
     strength: str
+    drug_name: Optional[str] = None
     active_ingredients_list: List[str]
     original_approval_date: Optional[date]
 

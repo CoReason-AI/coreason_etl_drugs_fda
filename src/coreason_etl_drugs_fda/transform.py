@@ -210,6 +210,8 @@ def prepare_silver_products(
         df = df.with_columns(pl.col("form").fill_null(""))
     if "strength" in cols:
         df = df.with_columns(pl.col("strength").fill_null(""))
+    if "drug_name" in cols:
+        df = df.with_columns(pl.col("drug_name").fill_null(""))
 
     from coreason_etl_drugs_fda.silver import generate_coreason_id, generate_row_hash
 
@@ -263,15 +265,20 @@ def prepare_gold_products(
         cols = ["appl_no", "sponsor_name"]
         if has_col(df_apps, "appl_type"):
             cols.append("appl_type")
-        df_apps_sub = df_apps.select(cols).unique(subset=["appl_no"])
+        # Deterministic Deduplication: Sort by all selected cols before unique
+        df_apps_sub = df_apps.select(cols).sort(cols).unique(subset=["appl_no"], keep="first")
         silver_df = silver_df.join(df_apps_sub, on="appl_no", how="left")
     else:
         silver_df = silver_df.with_columns([pl.lit(None).alias("sponsor_name"), pl.lit(None).alias("appl_type")])
 
     # 2. Join MarketingStatus
     if has_col(df_marketing, "marketing_status_id"):
-        df_marketing_sub = df_marketing.select(["appl_no", "product_no", "marketing_status_id"]).unique(
-            subset=["appl_no", "product_no"]
+        cols_marketing = ["appl_no", "product_no", "marketing_status_id"]
+        # Deterministic Deduplication: Sort by ID
+        df_marketing_sub = (
+            df_marketing.select(cols_marketing)
+            .sort(cols_marketing)
+            .unique(subset=["appl_no", "product_no"], keep="first")
         )
         silver_df = silver_df.join(df_marketing_sub, on=["appl_no", "product_no"], how="left")
     else:
@@ -287,8 +294,12 @@ def prepare_gold_products(
         if "marketing_status_id" in silver_df.collect_schema().names():
             silver_df = silver_df.with_columns(pl.col("marketing_status_id").cast(pl.Int64, strict=False))
 
-            df_lookup_sub = df_marketing_lookup.select(["marketing_status_id", "marketing_status_description"]).unique(
-                subset=["marketing_status_id"]
+            cols_lookup = ["marketing_status_id", "marketing_status_description"]
+            # Deterministic Deduplication: Sort by Description
+            df_lookup_sub = (
+                df_marketing_lookup.select(cols_lookup)
+                .sort(cols_lookup)
+                .unique(subset=["marketing_status_id"], keep="first")
             )
 
             silver_df = silver_df.join(df_lookup_sub, on="marketing_status_id", how="left")
@@ -297,7 +308,9 @@ def prepare_gold_products(
 
     # 3. Join TE
     if has_col(df_te, "te_code"):
-        df_te_sub = df_te.select(["appl_no", "product_no", "te_code"]).unique(subset=["appl_no", "product_no"])
+        cols_te = ["appl_no", "product_no", "te_code"]
+        # Deterministic Deduplication: Sort by TE Code
+        df_te_sub = df_te.select(cols_te).sort(cols_te).unique(subset=["appl_no", "product_no"], keep="first")
         silver_df = silver_df.join(df_te_sub, on=["appl_no", "product_no"], how="left")
     else:
         silver_df = silver_df.with_columns(pl.lit(None).alias("te_code"))
