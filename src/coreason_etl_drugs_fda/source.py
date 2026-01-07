@@ -114,7 +114,7 @@ def drugs_fda_source(base_url: str = "https://www.fda.gov/media/89850/download")
     for filename in files_present:
 
         @dlt.resource(  # type: ignore[misc]
-            name=f"raw_fda__{to_snake_case(filename.replace('.txt', ''))}",
+            name=f"FDA@DRUGS_bronze_fda__{to_snake_case(filename.replace('.txt', ''))}",
             write_disposition="replace",
             schema_contract={"columns": "evolve"},
         )
@@ -128,7 +128,7 @@ def drugs_fda_source(base_url: str = "https://www.fda.gov/media/89850/download")
     if "Products.txt" in files_present and "Submissions.txt" in files_present:
 
         @dlt.resource(  # type: ignore[misc]
-            name="silver_products",
+            name="FDA@DRUGS_silver_products",
             write_disposition="merge",
             primary_key="coreason_id",
             schema_contract={"columns": "evolve"},
@@ -206,7 +206,9 @@ def drugs_fda_source(base_url: str = "https://www.fda.gov/media/89850/download")
     if "Products.txt" in files_present:
 
         @dlt.resource(  # type: ignore[misc]
-            name="dim_drug_product", write_disposition="replace", schema_contract={"columns": "evolve"}
+            name="FDA@DRUGS_gold_drug_product",
+            write_disposition="replace",
+            schema_contract={"columns": "evolve"},
         )
         def gold_products_resource(z_content: bytes = zip_bytes) -> Iterator[ProductGold]:
             logger.info("Generating Gold Products layer...")

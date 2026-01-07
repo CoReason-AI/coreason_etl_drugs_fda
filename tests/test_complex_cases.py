@@ -47,7 +47,7 @@ def test_marketing_status_lookup_fanout() -> None:
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        gold_prods = list(source.resources["dim_drug_product"])
+        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
 
         # MUST still be exactly 1 row
         assert len(gold_prods) == 1
@@ -86,7 +86,7 @@ def test_marketing_status_lookup_dirty_ids() -> None:
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        gold_prods = list(source.resources["dim_drug_product"])
+        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
 
         assert len(gold_prods) == 1
         row = gold_prods[0]
@@ -139,7 +139,7 @@ def test_complex_integration() -> None:
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        gold_prods = list(source.resources["dim_drug_product"])
+        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
 
         assert len(gold_prods) == 1
         row = gold_prods[0]
@@ -201,7 +201,7 @@ def test_submission_date_sorting_legacy_vs_iso() -> None:
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        gold_prods = list(source.resources["dim_drug_product"])
+        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
 
         assert len(gold_prods) == 1
         row = gold_prods[0]
@@ -234,7 +234,7 @@ def test_te_code_fanout_prevention() -> None:
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        gold_prods = list(source.resources["dim_drug_product"])
+        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
 
         # Should NOT fan out to 2 rows
         assert len(gold_prods) == 1

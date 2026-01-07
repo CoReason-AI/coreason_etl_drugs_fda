@@ -51,7 +51,7 @@ def test_submissions_ingestion_and_orig_filtering() -> None:
 
         source = drugs_fda_source()
         # check silver products for original approval date
-        silver_prods = list(source.resources["silver_products"])
+        silver_prods = list(source.resources["FDA@DRUGS_silver_products"])
         assert len(silver_prods) == 1
         row = silver_prods[0]
 
@@ -106,7 +106,7 @@ def test_exclusivity_aggregation_and_protection_status() -> None:
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        gold_prods = list(source.resources["dim_drug_product"])
+        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
         assert len(gold_prods) == 3
 
         # Row 1: Protected

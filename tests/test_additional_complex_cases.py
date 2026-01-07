@@ -38,9 +38,9 @@ def test_missing_submissions_file() -> None:
         resource_names = list(source.resources.keys())
 
         # 'silver_products' should be missing
-        assert "silver_products" not in resource_names
+        assert "FDA@DRUGS_silver_products" not in resource_names
         # 'raw_fda__products' should be present
-        assert "raw_fda__products" in resource_names
+        assert "FDA@DRUGS_bronze_fda__products" in resource_names
         # 'dim_drug_product' (Gold) depends on Products present.
         # Logic says: if "Products.txt" in files_present: yield Gold.
         # But Gold calls _create_silver_dataframe which calls _extract_approval_dates.
@@ -50,10 +50,10 @@ def test_missing_submissions_file() -> None:
         # if "Products.txt" in files_present and "Submissions.txt" in files_present: -> yield Silver
         # if "Products.txt" in files_present: -> yield Gold
         # So Gold IS yielded.
-        assert "dim_drug_product" in resource_names
+        assert "FDA@DRUGS_gold_drug_product" in resource_names
 
         # Verify Gold content - should have null approval dates
-        gold_res = source.resources["dim_drug_product"]
+        gold_res = source.resources["FDA@DRUGS_gold_drug_product"]
         rows = list(gold_res)
         assert len(rows) == 1
         assert rows[0].original_approval_date is None
@@ -81,7 +81,7 @@ def test_empty_string_ingredients() -> None:
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        silver_res = source.resources["silver_products"]
+        silver_res = source.resources["FDA@DRUGS_silver_products"]
         rows = list(silver_res)
 
         # Verify ingredients list
@@ -119,7 +119,7 @@ def test_malformed_legacy_date() -> None:
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        silver_res = source.resources["silver_products"]
+        silver_res = source.resources["FDA@DRUGS_silver_products"]
         rows = list(silver_res)
 
         # Check date is None (failed parse) and NOT 1982-01-01
@@ -151,7 +151,7 @@ def test_minimal_gold_record_search_vector() -> None:
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        gold_res = source.resources["dim_drug_product"]
+        gold_res = source.resources["FDA@DRUGS_gold_drug_product"]
         rows = list(gold_res)
         row = rows[0]
 
@@ -186,7 +186,7 @@ def test_duplicate_products_logic() -> None:
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        silver_res = source.resources["silver_products"]
+        silver_res = source.resources["FDA@DRUGS_silver_products"]
         rows = list(silver_res)
 
         # Should get 2 rows (Silver doesn't deduplicate Products explicitly, relies on source)

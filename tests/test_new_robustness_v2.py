@@ -37,7 +37,7 @@ def test_massive_string_resilience() -> None:
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        silver_prods = list(source.resources["silver_products"])
+        silver_prods = list(source.resources["FDA@DRUGS_silver_products"])
 
         assert len(silver_prods) == 1
         row = silver_prods[0]
@@ -74,7 +74,7 @@ def test_loose_quoting_handling() -> None:
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        silver_prods = list(source.resources["silver_products"])
+        silver_prods = list(source.resources["FDA@DRUGS_silver_products"])
 
         assert len(silver_prods) == 1
         row = silver_prods[0]
@@ -108,7 +108,7 @@ def test_malformed_exclusivity_dates() -> None:
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        gold_prods = list(source.resources["dim_drug_product"])
+        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
 
         assert len(gold_prods) == 1
         row = gold_prods[0]

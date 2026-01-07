@@ -54,7 +54,7 @@ def test_search_vector_full_complexity() -> None:
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        gold_prods = list(source.resources["dim_drug_product"])
+        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
         row = gold_prods[0]
 
         # Expected: "TRÂDEMARK® INGA INGB SPÖNSÖR" (Uppercased)
@@ -92,7 +92,7 @@ def test_exclusivity_boundary_today() -> None:
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        gold_prods = list(source.resources["dim_drug_product"])
+        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
         row = gold_prods[0]
 
         # Should be NOT protected because date < max_date is False (date == max_date)
@@ -206,7 +206,7 @@ def test_duplicate_orig_submissions_selection() -> None:
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        silver_prods = list(source.resources["silver_products"])
+        silver_prods = list(source.resources["FDA@DRUGS_silver_products"])
 
         assert len(silver_prods) == 1
         row = silver_prods[0]
