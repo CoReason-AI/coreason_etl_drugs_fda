@@ -44,8 +44,8 @@ def test_malformed_tsv_ragged_lines() -> None:
         source = drugs_fda_source()
 
         # dlt source yields resources.
-        assert "raw_fda__products" in source.resources
-        resource = source.resources["raw_fda__products"]
+        assert "FDA@DRUGS_bronze_fda__products" in source.resources
+        resource = source.resources["FDA@DRUGS_bronze_fda__products"]
 
         data = list(resource)
         # Check that we got rows.
@@ -250,7 +250,7 @@ def test_submission_join_duplicate_orig() -> None:
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        silver_prod = list(source.resources["silver_products"])
+        silver_prod = list(source.resources["FDA@DRUGS_silver_products"])
         row = silver_prod[0]
 
         # Expect 2022-01-01 (Earliest) because code sorts by date
@@ -280,7 +280,7 @@ def test_submission_join_mismatched_padding() -> None:
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        silver_prod = list(source.resources["silver_products"])
+        silver_prod = list(source.resources["FDA@DRUGS_silver_products"])
         row = silver_prod[0]
 
         assert row.appl_no == "000010"
@@ -313,7 +313,7 @@ def test_encoding_cp1252() -> None:
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        silver_prod = list(source.resources["silver_products"])
+        silver_prod = list(source.resources["FDA@DRUGS_silver_products"])
         row = silver_prod[0]
 
         # Verify decoding
@@ -366,7 +366,7 @@ def test_gold_exclusivity_mixed_dates() -> None:
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        gold_prods = list(source.resources["dim_drug_product"])
+        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
         assert len(gold_prods) == 1
         row = gold_prods[0]
 
@@ -400,7 +400,7 @@ def test_gold_auxiliary_duplication() -> None:
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        gold_prods = list(source.resources["dim_drug_product"])
+        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
 
         # Should still be 1 row, not 2
         assert len(gold_prods) == 1

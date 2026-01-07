@@ -45,7 +45,7 @@ def test_gold_products_marketing_status_lookup() -> None:
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        gold_prods = list(source.resources["dim_drug_product"])
+        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
         assert len(gold_prods) == 1
         row = gold_prods[0]
 

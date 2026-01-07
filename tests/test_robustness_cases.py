@@ -39,12 +39,12 @@ def test_empty_input_file_handling() -> None:
         source = drugs_fda_source()
 
         # Check raw resource
-        raw_res = list(source.resources["raw_fda__products"])
+        raw_res = list(source.resources["FDA@DRUGS_bronze_fda__products"])
         assert len(raw_res) == 0
 
         # Check silver resource (should be empty but exist)
-        if "silver_products" in source.resources:
-            silver_res = list(source.resources["silver_products"])
+        if "FDA@DRUGS_silver_products" in source.resources:
+            silver_res = list(source.resources["FDA@DRUGS_silver_products"])
             assert len(silver_res) == 0
 
 
@@ -76,7 +76,7 @@ def test_missing_required_columns() -> None:
         # in `prepare_silver_products` and returns an empty frame if missing.
         # So it should NOT crash, but yield 0 rows (or empty list).
 
-        resources = list(source.resources["silver_products"])
+        resources = list(source.resources["FDA@DRUGS_silver_products"])
         # Expect 0 rows because required key is missing
         assert len(resources) == 0
 
@@ -104,7 +104,7 @@ def test_null_keys_in_source() -> None:
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        silver_res = list(source.resources["silver_products"])
+        silver_res = list(source.resources["FDA@DRUGS_silver_products"])
 
         # We expect at least the valid row.
         # The null row:
@@ -159,7 +159,7 @@ def test_future_dates_handling() -> None:
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        res = list(source.resources["silver_products"])
+        res = list(source.resources["FDA@DRUGS_silver_products"])
         assert len(res) == 1
         assert res[0].original_approval_date.year == 3000
 
@@ -184,7 +184,7 @@ def test_whitespace_only_ids() -> None:
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        res = list(source.resources["silver_products"])
+        res = list(source.resources["FDA@DRUGS_silver_products"])
 
         # _clean_dataframe strips chars. "   " -> "".
         # normalize_ids pads "". "000000".

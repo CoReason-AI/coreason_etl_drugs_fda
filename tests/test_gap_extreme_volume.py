@@ -54,7 +54,7 @@ def test_massive_fanout_search_vector_resilience() -> None:
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        gold_prods = list(source.resources["dim_drug_product"])
+        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
 
         assert len(gold_prods) == 1
         row = gold_prods[0]
@@ -96,8 +96,8 @@ def test_massive_active_ingredients_list() -> None:
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        silver_prods = list(source.resources["silver_products"])
-        gold_prods = list(source.resources["dim_drug_product"])
+        silver_prods = list(source.resources["FDA@DRUGS_silver_products"])
+        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
 
         assert len(silver_prods) == 1
         row = silver_prods[0]

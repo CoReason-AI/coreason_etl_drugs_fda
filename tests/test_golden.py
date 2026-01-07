@@ -50,7 +50,7 @@ def test_silver_logic_golden() -> None:
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        silver_resource = source.resources["silver_products"]
+        silver_resource = source.resources["FDA@DRUGS_silver_products"]
 
         # Consume the generator
         results = list(silver_resource)

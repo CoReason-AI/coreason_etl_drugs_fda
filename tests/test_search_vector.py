@@ -35,7 +35,7 @@ def test_gold_search_vector_edge_cases() -> None:
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        gold_prods = list(source.resources["dim_drug_product"])
+        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
         row = gold_prods[0]
         # Should be just "INGA"
         assert row.search_vector == "INGA"
@@ -56,7 +56,7 @@ def test_gold_search_vector_edge_cases() -> None:
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        gold_prods = list(source.resources["dim_drug_product"])
+        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
         row = gold_prods[0]
         # Should be "MYDRUG" (uppercased)
         assert row.search_vector == "MYDRUG"
@@ -86,7 +86,7 @@ def test_gold_search_vector_missing_sponsor_te() -> None:
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        gold_prods = list(source.resources["dim_drug_product"])
+        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
         row = gold_prods[0]
 
         # Search vector: MyDrug + IngA + "" + "" -> "MYDRUG INGA"

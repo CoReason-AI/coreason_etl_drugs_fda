@@ -44,7 +44,7 @@ def test_resilience_ragged_lines_extra_columns() -> None:
 
         source = drugs_fda_source()
         # Should process without error
-        silver_prods = list(source.resources["silver_products"])
+        silver_prods = list(source.resources["FDA@DRUGS_silver_products"])
 
         # Should get 2 rows (or 1 if the second is dropped, but truncate usually keeps it)
         # truncate_ragged_lines=True usually keeps the row and ignores extra cols.
@@ -93,7 +93,7 @@ def test_resilience_ragged_lines_missing_columns() -> None:
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        silver_prods = list(source.resources["silver_products"])
+        silver_prods = list(source.resources["FDA@DRUGS_silver_products"])
 
         # Row 1 OK
         assert any(r.appl_no == "000001" for r in silver_prods)
@@ -135,7 +135,7 @@ def test_resilience_whitespace_join_keys() -> None:
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        gold_prods = list(source.resources["dim_drug_product"])
+        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
 
         assert len(gold_prods) == 1
         row = gold_prods[0]
@@ -168,7 +168,7 @@ def test_resilience_empty_optional_files() -> None:
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        gold_prods = list(source.resources["dim_drug_product"])
+        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
 
         assert len(gold_prods) == 1
         row = gold_prods[0]
@@ -203,7 +203,7 @@ def test_resilience_non_ascii_ingredients() -> None:
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        gold_prods = list(source.resources["dim_drug_product"])
+        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
 
         assert len(gold_prods) == 1
         row = gold_prods[0]
@@ -242,8 +242,8 @@ def test_missing_submissions_skips_silver() -> None:
         source = drugs_fda_source()
 
         # We expect bronze resources to be present (e.g. raw_fda__products)
-        assert "raw_fda__products" in source.resources
-        assert "raw_fda__applications" in source.resources
+        assert "FDA@DRUGS_bronze_fda__products" in source.resources
+        assert "FDA@DRUGS_bronze_fda__applications" in source.resources
 
         # But silver_products should be ABSENT because Submissions.txt is missing
-        assert "silver_products" not in source.resources
+        assert "FDA@DRUGS_silver_products" not in source.resources

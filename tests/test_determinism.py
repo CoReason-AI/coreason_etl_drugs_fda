@@ -50,7 +50,7 @@ def test_lookup_determinism() -> None:
 
             source = drugs_fda_source()
             # We specifically want Gold product
-            gold_prods = list(source.resources["dim_drug_product"])
+            gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
             return str(gold_prods[0].marketing_status_description)
 
     result_a = run_with_lookup_content(content_a)
@@ -99,7 +99,7 @@ def test_marketing_status_determinism() -> None:
             mock_get.return_value = mock_response
 
             source = drugs_fda_source()
-            gold_prods = list(source.resources["dim_drug_product"])
+            gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
             val = gold_prods[0].marketing_status_id
             assert val is not None
             return int(val)
