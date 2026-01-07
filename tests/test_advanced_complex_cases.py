@@ -44,7 +44,7 @@ def test_duplicate_source_records_determinism() -> None:
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        silver_res = list(source.resources["silver_products"])
+        silver_res = list(source.resources["FDA@DRUGS_silver_products"])
 
         # Should yield 2 items
         assert len(silver_res) == 2
@@ -72,7 +72,7 @@ def test_missing_submission_data_left_join() -> None:
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        silver_res = list(source.resources["silver_products"])
+        silver_res = list(source.resources["FDA@DRUGS_silver_products"])
 
         assert len(silver_res) == 1
         assert silver_res[0].appl_no == "000002"
@@ -106,7 +106,7 @@ def test_special_characters_in_ids() -> None:
         # This should fail validation.
 
         with pytest.raises(ResourceExtractionError) as excinfo:
-            list(source.resources["silver_products"])
+            list(source.resources["FDA@DRUGS_silver_products"])
 
         # Verify it's a Pydantic validation error inside
         assert "validation error" in str(excinfo.value).lower()
@@ -131,7 +131,7 @@ def test_empty_string_fields() -> None:
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        silver_res = list(source.resources["silver_products"])
+        silver_res = list(source.resources["FDA@DRUGS_silver_products"])
 
         assert len(silver_res) == 1
         # Pydantic model allows empty strings for Strength?
@@ -169,7 +169,7 @@ def test_large_file_iteration() -> None:
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        silver_res = list(source.resources["silver_products"])
+        silver_res = list(source.resources["FDA@DRUGS_silver_products"])
 
         assert len(silver_res) == 1000
 
@@ -227,7 +227,7 @@ def test_mixed_case_headers() -> None:
         # BUT: The test actually PASSED (Did not raise Exception), which means it yielded data successfully?
         # Let's inspect the output.
 
-        resources = list(source.resources["silver_products"])
+        resources = list(source.resources["FDA@DRUGS_silver_products"])
         # If list is empty, it "passed" extraction but maybe filtered out rows?
         # Or maybe "APPLNO" -> "appl_no"?
         # dlt NamingConvention("APPLNO") -> "applno" usually.

@@ -59,13 +59,13 @@ def test_pipeline_bronze_ingestion(mock_zip_content_integration: bytes) -> None:
 
         # Check resources exist
         resources = source.resources
-        assert "raw_fda__products" in resources
-        assert "raw_fda__submissions" in resources
-        assert "raw_fda__exclusivity" in resources
-        assert "silver_products" in resources
+        assert "FDA@DRUGS_bronze_fda__products" in resources
+        assert "FDA@DRUGS_bronze_fda__submissions" in resources
+        assert "FDA@DRUGS_bronze_fda__exclusivity" in resources
+        assert "FDA@DRUGS_silver_products" in resources
 
         # Check content of Exclusivity
-        excl_data = list(resources["raw_fda__exclusivity"])
+        excl_data = list(resources["FDA@DRUGS_bronze_fda__exclusivity"])
         assert len(excl_data) == 1
         assert excl_data[0]["exclusivity_code"] == "ODE"
 

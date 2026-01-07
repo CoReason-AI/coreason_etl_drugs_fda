@@ -40,7 +40,7 @@ def test_submissions_mixed_case_filtering() -> None:
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        silver_prods = list(source.resources["silver_products"])
+        silver_prods = list(source.resources["FDA@DRUGS_silver_products"])
         row = silver_prods[0]
 
         # Expect None because "orig" != "ORIG"
@@ -76,7 +76,7 @@ def test_exclusivity_invalid_dates() -> None:
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        gold_prods = list(source.resources["dim_drug_product"])
+        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
         row = gold_prods[0]
 
         assert row.is_protected is True
@@ -112,7 +112,7 @@ def test_ghost_records_filtering() -> None:
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        gold_prods = list(source.resources["dim_drug_product"])
+        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
 
         # Should strictly contain 1 row (000001)
         assert len(gold_prods) == 1
@@ -141,7 +141,7 @@ def test_empty_exclusivity_file() -> None:
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        gold_prods = list(source.resources["dim_drug_product"])
+        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
         row = gold_prods[0]
 
         assert row.is_protected is False
@@ -175,7 +175,7 @@ def test_submission_same_date_determinism() -> None:
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        silver_prods = list(source.resources["silver_products"])
+        silver_prods = list(source.resources["FDA@DRUGS_silver_products"])
 
         # Should be 1 row
         assert len(silver_prods) == 1

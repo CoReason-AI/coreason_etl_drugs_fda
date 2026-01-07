@@ -44,7 +44,7 @@ def test_ghost_records_in_aux_files() -> None:
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        gold_prods = list(source.resources["dim_drug_product"])
+        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
 
         # Should strictly be 1 row (000001)
         assert len(gold_prods) == 1
@@ -82,7 +82,7 @@ def test_legacy_date_vs_older_real_date() -> None:
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        silver_prods = list(source.resources["silver_products"])
+        silver_prods = list(source.resources["FDA@DRUGS_silver_products"])
 
         assert len(silver_prods) == 1
         # 1980 is earlier than 1982, so it should win.
@@ -115,7 +115,7 @@ def test_search_vector_all_nulls() -> None:
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        gold_prods = list(source.resources["dim_drug_product"])
+        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
         assert len(gold_prods) == 1
         row = gold_prods[0]
 
@@ -144,7 +144,7 @@ def test_product_no_ingredients() -> None:
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        silver_prods = list(source.resources["silver_products"])
+        silver_prods = list(source.resources["FDA@DRUGS_silver_products"])
         assert len(silver_prods) == 1
         row = silver_prods[0]
 
@@ -173,7 +173,7 @@ def test_submission_date_missing() -> None:
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        silver_prods = list(source.resources["silver_products"])
+        silver_prods = list(source.resources["FDA@DRUGS_silver_products"])
         assert len(silver_prods) == 1
         # Should be None
         assert silver_prods[0].original_approval_date is None

@@ -41,7 +41,7 @@ def test_submissions_schema_mismatch_missing_columns() -> None:
 
         # This should NOT crash.
         # extract_orig_dates checks for columns before filtering.
-        silver_prods = list(source.resources["silver_products"])
+        silver_prods = list(source.resources["FDA@DRUGS_silver_products"])
 
         assert len(silver_prods) == 1
         row = silver_prods[0]
@@ -73,7 +73,7 @@ def test_marketing_lookup_schema_mismatch() -> None:
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        gold_prods = list(source.resources["dim_drug_product"])
+        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
 
         assert len(gold_prods) == 1
         row = gold_prods[0]
