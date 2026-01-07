@@ -14,7 +14,7 @@ from typing import Any, Dict, Iterator, List
 
 import dlt
 import polars as pl
-import requests  # type: ignore[import-untyped]
+import requests
 from dlt.sources import DltResource
 
 from coreason_etl_drugs_fda.gold import ProductGold
