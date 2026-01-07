@@ -82,7 +82,7 @@ def test_source_http_error() -> None:
     """
     Test that HTTP errors are raised.
     """
-    import requests  # type: ignore[import-untyped]
+    import requests
 
     with patch("requests.get") as mock_get:
         mock_response = MagicMock()
