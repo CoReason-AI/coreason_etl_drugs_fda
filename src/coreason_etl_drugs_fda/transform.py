@@ -238,25 +238,11 @@ def prepare_gold_products(
     def has_col(ldf: pl.LazyFrame, col: str) -> bool:
         return col in ldf.collect_schema().names()
 
-    # Normalize Keys in Aux Files
-    # We use a loop or repeated logic, but explicit is fine here
-    if has_col(df_apps, "appl_no"):
-        df_apps = df_apps.with_columns(pl.col("appl_no").cast(pl.String).str.pad_start(6, "0"))
-
-    if has_col(df_marketing, "appl_no"):
-        df_marketing = df_marketing.with_columns(pl.col("appl_no").cast(pl.String).str.pad_start(6, "0"))
-    if has_col(df_marketing, "product_no"):
-        df_marketing = df_marketing.with_columns(pl.col("product_no").cast(pl.String).str.pad_start(3, "0"))
-
-    if has_col(df_te, "appl_no"):
-        df_te = df_te.with_columns(pl.col("appl_no").cast(pl.String).str.pad_start(6, "0"))
-    if has_col(df_te, "product_no"):
-        df_te = df_te.with_columns(pl.col("product_no").cast(pl.String).str.pad_start(3, "0"))
-
-    if has_col(df_exclusivity, "appl_no"):
-        df_exclusivity = df_exclusivity.with_columns(pl.col("appl_no").cast(pl.String).str.pad_start(6, "0"))
-    if has_col(df_exclusivity, "product_no"):
-        df_exclusivity = df_exclusivity.with_columns(pl.col("product_no").cast(pl.String).str.pad_start(3, "0"))
+    # Normalize Keys in Aux Files using standard normalize_ids
+    df_apps = normalize_ids(df_apps)
+    df_marketing = normalize_ids(df_marketing)
+    df_te = normalize_ids(df_te)
+    df_exclusivity = normalize_ids(df_exclusivity)
 
     # 1. Join Applications
     if has_col(df_apps, "sponsor_name"):
