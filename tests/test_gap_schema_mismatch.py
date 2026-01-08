@@ -47,7 +47,7 @@ def test_submissions_schema_mismatch_missing_columns() -> None:
         row = silver_prods[0]
 
         # Approval date should be None since we couldn't parse submissions
-        assert row.original_approval_date is None
+        assert row["original_approval_date"] is None
 
 
 def test_marketing_lookup_schema_mismatch() -> None:
@@ -79,4 +79,4 @@ def test_marketing_lookup_schema_mismatch() -> None:
         row = gold_prods[0]
 
         # Should be None/Null, not crash
-        assert row.marketing_status_description is None
+        assert row["marketing_status_description"] is None

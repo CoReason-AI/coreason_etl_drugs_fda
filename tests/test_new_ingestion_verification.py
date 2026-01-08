@@ -56,7 +56,7 @@ def test_submissions_ingestion_and_orig_filtering() -> None:
         row = silver_prods[0]
 
         # Should match the ORIG date, ignoring SUPPL (even if SUPPL is earlier/later)
-        assert row.original_approval_date == date(2000, 1, 1)
+        assert row["original_approval_date"] == date(2000, 1, 1)
 
 
 def test_exclusivity_aggregation_and_protection_status() -> None:
@@ -110,13 +110,13 @@ def test_exclusivity_aggregation_and_protection_status() -> None:
         assert len(gold_prods) == 3
 
         # Row 1: Protected
-        row1 = next(p for p in gold_prods if p.appl_no == "000001")
-        assert row1.is_protected is True
+        row1 = next(p for p in gold_prods if p["appl_no"] == "000001")
+        assert row1["is_protected"] is True
 
         # Row 2: Not Protected
-        row2 = next(p for p in gold_prods if p.appl_no == "000002")
-        assert row2.is_protected is False
+        row2 = next(p for p in gold_prods if p["appl_no"] == "000002")
+        assert row2["is_protected"] is False
 
         # Row 3: No Exclusivity -> Not Protected
-        row3 = next(p for p in gold_prods if p.appl_no == "000003")
-        assert row3.is_protected is False
+        row3 = next(p for p in gold_prods if p["appl_no"] == "000003")
+        assert row3["is_protected"] is False

@@ -50,7 +50,7 @@ def test_gold_products_marketing_status_lookup() -> None:
         row = gold_prods[0]
 
         # Verify ID was joined
-        assert row.marketing_status_id == 1
+        assert row["marketing_status_id"] == 1
 
         # Verify Description was enriched (This should FAIL before implementation)
-        assert row.marketing_status_description == "Prescription"
+        assert row["marketing_status_description"] == "Prescription"

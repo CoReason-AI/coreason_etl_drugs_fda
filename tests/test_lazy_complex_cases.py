@@ -12,9 +12,6 @@ import io
 import zipfile
 from unittest.mock import MagicMock, patch
 
-import pytest
-from dlt.extract.exceptions import ResourceExtractionError
-
 from coreason_etl_drugs_fda.source import drugs_fda_source
 
 
@@ -58,21 +55,15 @@ def test_lazy_type_inference_trap() -> None:
         # So it should see "A123" and infer String.
         # This test ensures that configuration holds.
 
-        # "A123" is technically invalid for the domain (ApplNo must be digits).
-        # However, this test verifies that Polars READS it as a string (inference success)
-        # instead of crashing with a schema mismatch (inference trap).
-        # If Polars inferred Int64 based on first 100 rows, it would crash reading "A123".
-        # Since it reads it, it passes it to Pydantic, which THEN raises ValidationError.
-        # We expect ResourceExtractionError wrapping a ValidationError.
+        # "A123" is technically invalid, but our improved `normalize_ids` cleans it to "000123".
+        # So instead of failing, it should succeed! This proves Polars read it as String (success)
+        # AND that our cleaning logic works.
 
-        from pydantic import ValidationError
+        silver_prods = list(source.resources["FDA@DRUGS_silver_products"])
 
-        with pytest.raises(ResourceExtractionError) as excinfo:
-            list(source.resources["FDA@DRUGS_silver_products"])
-
-        # Verify it reached Pydantic validation (proving Polars read it successfully)
-        assert isinstance(excinfo.value.__cause__, ValidationError)
-        assert "string_pattern_mismatch" in str(excinfo.value.__cause__)
+        # Verify it handled A123 by cleaning it
+        # Last item (index 100)
+        assert silver_prods[-1]["appl_no"] == "000123"
 
 
 def test_lazy_deduplication_fanout() -> None:
@@ -102,7 +93,7 @@ def test_lazy_deduplication_fanout() -> None:
         gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
 
         assert len(gold_prods) == 1
-        assert gold_prods[0].marketing_status_description == "Desc"
+        assert gold_prods[0]["marketing_status_description"] == "Desc"
 
 
 def test_massive_field_handling() -> None:
@@ -132,7 +123,7 @@ def test_massive_field_handling() -> None:
 
         assert len(silver_prods) == 1
         # Check that ingredient list has the massive string
-        assert len(silver_prods[0].active_ingredients_list[0]) == 50000
+        assert len(silver_prods[0]["active_ingredients_list"][0]) == 50000
 
 
 def test_mixed_newline_formats() -> None:
@@ -163,7 +154,7 @@ def test_mixed_newline_formats() -> None:
         silver_prods = list(source.resources["FDA@DRUGS_silver_products"])
 
         assert len(silver_prods) == 2
-        ids = sorted([p.appl_no for p in silver_prods])
+        ids = sorted([p["appl_no"] for p in silver_prods])
         assert ids == ["000001", "000002"]
 
 

@@ -12,9 +12,6 @@ import io
 import zipfile
 from unittest.mock import MagicMock, patch
 
-import pytest
-from dlt.extract.exceptions import ResourceExtractionError
-
 from coreason_etl_drugs_fda.source import drugs_fda_source
 
 
@@ -49,7 +46,7 @@ def test_duplicate_source_records_determinism() -> None:
         # Should yield 2 items
         assert len(silver_res) == 2
         # Both must have same coreason_id
-        assert silver_res[0].coreason_id == silver_res[1].coreason_id
+        assert silver_res[0]["coreason_id"] == silver_res[1]["coreason_id"]
 
 
 def test_missing_submission_data_left_join() -> None:
@@ -75,9 +72,9 @@ def test_missing_submission_data_left_join() -> None:
         silver_res = list(source.resources["FDA@DRUGS_silver_products"])
 
         assert len(silver_res) == 1
-        assert silver_res[0].appl_no == "000002"
+        assert silver_res[0]["appl_no"] == "000002"
         # Date should be None (Optional field)
-        assert silver_res[0].original_approval_date is None
+        assert silver_res[0]["original_approval_date"] is None
 
 
 def test_special_characters_in_ids() -> None:
@@ -101,15 +98,15 @@ def test_special_characters_in_ids() -> None:
 
         source = drugs_fda_source()
 
-        # Pydantic model enforces regex ^\d{6}$. "12-34" (5 chars) -> "012-34" (6 chars).
-        # But "012-34" contains hyphen, regex requires digits only.
-        # This should fail validation.
+        # "12-34" (5 chars) is normalized by our logic:
+        # 1. strip_chars()
+        # 2. regex remove non-digit -> "1234"
+        # 3. pad_start(6, "0") -> "001234"
+        # So it becomes valid "001234" and succeeds.
 
-        with pytest.raises(ResourceExtractionError) as excinfo:
-            list(source.resources["FDA@DRUGS_silver_products"])
-
-        # Verify it's a Pydantic validation error inside
-        assert "validation error" in str(excinfo.value).lower()
+        silver_res = list(source.resources["FDA@DRUGS_silver_products"])
+        assert len(silver_res) == 1
+        assert silver_res[0]["appl_no"] == "001234"
 
 
 def test_empty_string_fields() -> None:
@@ -137,7 +134,7 @@ def test_empty_string_fields() -> None:
         # Pydantic model allows empty strings for Strength?
         # class ProductSilver: strength: str. No regex.
         # So it should pass.
-        assert silver_res[0].strength == ""
+        assert silver_res[0]["strength"] == ""
 
 
 def test_large_file_iteration() -> None:

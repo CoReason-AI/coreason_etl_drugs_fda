@@ -56,7 +56,7 @@ def test_missing_submissions_file() -> None:
         gold_res = source.resources["FDA@DRUGS_gold_drug_product"]
         rows = list(gold_res)
         assert len(rows) == 1
-        assert rows[0].original_approval_date is None
+        assert rows[0]["original_approval_date"] is None
 
 
 def test_empty_string_ingredients() -> None:
@@ -90,7 +90,7 @@ def test_empty_string_ingredients() -> None:
         # If TSV has \t\t, it's None or "" depending on parser.
         # If it's "", result is [""]?
         # Let's see what happens.
-        assert rows[0].active_ingredients_list == [""] or rows[0].active_ingredients_list == []
+        assert rows[0]["active_ingredients_list"] == [""] or rows[0]["active_ingredients_list"] == []
 
         # If it is None, code fills with [].
         # We wrote \t\t so it's likely None or "".
@@ -123,8 +123,8 @@ def test_malformed_legacy_date() -> None:
         rows = list(silver_res)
 
         # Check date is None (failed parse) and NOT 1982-01-01
-        assert rows[0].original_approval_date is None
-        assert rows[0].is_historic_record is False
+        assert rows[0]["original_approval_date"] is None
+        assert rows[0]["is_historic_record"] is False
 
 
 def test_minimal_gold_record_search_vector() -> None:
@@ -158,9 +158,9 @@ def test_minimal_gold_record_search_vector() -> None:
         # Search vector should be empty string (stripped) or just spaces stripped
         # Logic: DrugName("") + Ingredients("") + Sponsor("") + TE("")
         # Result: ""
-        assert row.search_vector == ""
-        assert row.is_generic is False
-        assert row.is_protected is False
+        assert row["search_vector"] == ""
+        assert row["is_generic"] is False
+        assert row["is_protected"] is False
 
 
 def test_duplicate_products_logic() -> None:
@@ -192,4 +192,4 @@ def test_duplicate_products_logic() -> None:
         # Should get 2 rows (Silver doesn't deduplicate Products explicitly, relies on source)
         assert len(rows) == 2
         # They should have identical coreason_id
-        assert rows[0].coreason_id == rows[1].coreason_id
+        assert rows[0]["coreason_id"] == rows[1]["coreason_id"]

@@ -57,12 +57,22 @@ def normalize_ids(df: Union[pl.DataFrame, pl.LazyFrame]) -> Union[pl.DataFrame, 
 
     if "appl_no" in cols:
         df = df.with_columns(
-            pl.col("appl_no").cast(pl.String).str.strip_chars().replace("", None).str.pad_start(6, "0")
+            pl.col("appl_no")
+            .cast(pl.String)
+            .str.strip_chars()
+            .str.replace_all(r"[^0-9]", "")
+            .replace("", None)
+            .str.pad_start(6, "0")
         )
 
     if "product_no" in cols:
         df = df.with_columns(
-            pl.col("product_no").cast(pl.String).str.strip_chars().replace("", None).str.pad_start(3, "0")
+            pl.col("product_no")
+            .cast(pl.String)
+            .str.strip_chars()
+            .str.replace_all(r"[^0-9]", "")
+            .replace("", None)
+            .str.pad_start(3, "0")
         )
     return df
 
