@@ -38,7 +38,7 @@ def test_gold_search_vector_edge_cases() -> None:
         gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
         row = gold_prods[0]
         # Should be just "INGA"
-        assert row.search_vector == "INGA"
+        assert row["search_vector"] == "INGA"
 
     # Case 2: Missing 'active_ingredient' (Should normally not happen but good for robustness)
     buffer = io.BytesIO()
@@ -59,8 +59,8 @@ def test_gold_search_vector_edge_cases() -> None:
         gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
         row = gold_prods[0]
         # Should be "MYDRUG" (uppercased)
-        assert row.search_vector == "MYDRUG"
-        assert row.active_ingredients_list == []
+        assert row["search_vector"] == "MYDRUG"
+        assert row["active_ingredients_list"] == []
 
 
 def test_gold_search_vector_missing_sponsor_te() -> None:
@@ -90,4 +90,4 @@ def test_gold_search_vector_missing_sponsor_te() -> None:
         row = gold_prods[0]
 
         # Search vector: MyDrug + IngA + "" + "" -> "MYDRUG INGA"
-        assert row.search_vector == "MYDRUG INGA"
+        assert row["search_vector"] == "MYDRUG INGA"

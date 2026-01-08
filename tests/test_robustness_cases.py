@@ -114,7 +114,7 @@ def test_null_keys_in_source() -> None:
         # If it treats as empty string "", pad_start is "000000".
         # Let's check if "000000" is produced.
 
-        appl_nos = [row.appl_no for row in silver_res]
+        appl_nos = [row["appl_no"] for row in silver_res]
         assert "000001" in appl_nos
 
         # If the second row survived, it might have a generated ApplNo or None.
@@ -161,7 +161,7 @@ def test_future_dates_handling() -> None:
         source = drugs_fda_source()
         res = list(source.resources["FDA@DRUGS_silver_products"])
         assert len(res) == 1
-        assert res[0].original_approval_date.year == 3000
+        assert res[0]["original_approval_date"].year == 3000
 
 
 def test_whitespace_only_ids() -> None:
@@ -191,4 +191,4 @@ def test_whitespace_only_ids() -> None:
         # So it should match "000000" in Submissions.
 
         assert len(res) == 1
-        assert res[0].appl_no == "000000"
+        assert res[0]["appl_no"] == "000000"

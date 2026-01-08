@@ -48,7 +48,7 @@ def test_ghost_records_in_aux_files() -> None:
 
         # Should strictly be 1 row (000001)
         assert len(gold_prods) == 1
-        assert gold_prods[0].appl_no == "000001"
+        assert gold_prods[0]["appl_no"] == "000001"
 
 
 def test_legacy_date_vs_older_real_date() -> None:
@@ -86,7 +86,7 @@ def test_legacy_date_vs_older_real_date() -> None:
 
         assert len(silver_prods) == 1
         # 1980 is earlier than 1982, so it should win.
-        assert silver_prods[0].original_approval_date == date(1980, 1, 1)
+        assert silver_prods[0]["original_approval_date"] == date(1980, 1, 1)
 
 
 def test_search_vector_all_nulls() -> None:
@@ -121,7 +121,7 @@ def test_search_vector_all_nulls() -> None:
 
         # search_vector should be "" (empty string)
         # Logic: "" + "" + "" + "" -> ""
-        assert row.search_vector == ""
+        assert row["search_vector"] == ""
 
 
 def test_product_no_ingredients() -> None:
@@ -150,7 +150,7 @@ def test_product_no_ingredients() -> None:
 
         # clean_ingredients: split(";") on "" -> [""]? Or if null -> []?
         # Correct behavior verified: it produces [] (empty list)
-        assert row.active_ingredients_list == []
+        assert row["active_ingredients_list"] == []
 
 
 def test_submission_date_missing() -> None:
@@ -176,4 +176,4 @@ def test_submission_date_missing() -> None:
         silver_prods = list(source.resources["FDA@DRUGS_silver_products"])
         assert len(silver_prods) == 1
         # Should be None
-        assert silver_prods[0].original_approval_date is None
+        assert silver_prods[0]["original_approval_date"] is None

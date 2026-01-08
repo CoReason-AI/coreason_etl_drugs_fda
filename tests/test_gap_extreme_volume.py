@@ -62,11 +62,11 @@ def test_massive_fanout_search_vector_resilience() -> None:
         # Verify it picked one TE code (deterministically the first or one of them)
         # Polars unique might pick any, usually first if stable.
         # With 5000 input rows, we expect 1 output row.
-        assert row.te_code is not None
-        assert row.te_code.startswith("TE")
+        assert row["te_code"] is not None
+        assert row["te_code"].startswith("TE")
 
         # Search vector should contain that one TE code, not 5000 of them.
-        assert len(row.search_vector) < 1000  # Should be small if deduplicated
+        assert len(row["search_vector"]) < 1000  # Should be small if deduplicated
 
 
 def test_massive_active_ingredients_list() -> None:
@@ -103,12 +103,12 @@ def test_massive_active_ingredients_list() -> None:
         row = silver_prods[0]
 
         # Verify list length
-        assert len(row.active_ingredients_list) == 1000
-        assert row.active_ingredients_list[0] == "ING0"
+        assert len(row["active_ingredients_list"]) == 1000
+        assert row["active_ingredients_list"][0] == "ING0"
 
         # Verify Gold Search Vector
         # It joins them with " ".
         # Length approx 1000 * 4 chars + spaces ~ 5000 chars.
         gold_row = gold_prods[0]
-        assert len(gold_row.search_vector) > 4000
-        assert "ING999" in gold_row.search_vector
+        assert len(gold_row["search_vector"]) > 4000
+        assert "ING999" in gold_row["search_vector"]

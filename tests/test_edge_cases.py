@@ -254,7 +254,7 @@ def test_submission_join_duplicate_orig() -> None:
         row = silver_prod[0]
 
         # Expect 2022-01-01 (Earliest) because code sorts by date
-        assert row.original_approval_date == datetime.date(2022, 1, 1)
+        assert row["original_approval_date"] == datetime.date(2022, 1, 1)
 
 
 def test_submission_join_mismatched_padding() -> None:
@@ -283,8 +283,8 @@ def test_submission_join_mismatched_padding() -> None:
         silver_prod = list(source.resources["FDA@DRUGS_silver_products"])
         row = silver_prod[0]
 
-        assert row.appl_no == "000010"
-        assert row.original_approval_date == datetime.date(2023, 5, 5)
+        assert row["appl_no"] == "000010"
+        assert row["original_approval_date"] == datetime.date(2023, 5, 5)
 
 
 def test_encoding_cp1252() -> None:
@@ -335,7 +335,7 @@ def test_encoding_cp1252() -> None:
 
         # active_ingredients_list is upper-cased in transform.py
         # "Ingr\xe9dient" -> "Ingrédient" -> "INGRÉDIENT"
-        assert row.active_ingredients_list[0] == "INGRÉDIENT"
+        assert row["active_ingredients_list"][0] == "INGRÉDIENT"
 
 
 def test_gold_exclusivity_mixed_dates() -> None:
@@ -371,7 +371,7 @@ def test_gold_exclusivity_mixed_dates() -> None:
         row = gold_prods[0]
 
         # Should be protected because max(3000, 2000) > today
-        assert row.is_protected is True
+        assert row["is_protected"] is True
 
 
 def test_gold_auxiliary_duplication() -> None:
@@ -404,7 +404,7 @@ def test_gold_auxiliary_duplication() -> None:
 
         # Should still be 1 row, not 2
         assert len(gold_prods) == 1
-        assert gold_prods[0].sponsor_name == "SponsorA"
+        assert gold_prods[0]["sponsor_name"] == "SponsorA"
 
 
 def test_ingredients_complex_formatting() -> None:

@@ -62,7 +62,7 @@ def test_search_vector_full_complexity() -> None:
         # "Trâdemark®".upper() -> "TRÂDEMARK®"
         # "Spönsör".upper() -> "SPÖNSÖR"
         target = "TRÂDEMARK® INGA INGB SPÖNSÖR"
-        assert row.search_vector == target
+        assert row["search_vector"] == target
 
 
 def test_exclusivity_boundary_today() -> None:
@@ -97,7 +97,7 @@ def test_exclusivity_boundary_today() -> None:
 
         # Should be NOT protected because date < max_date is False (date == max_date)
         # Logic: today < max_date
-        assert row.is_protected is False
+        assert row["is_protected"] is False
 
 
 def test_active_ingredients_formatting_edge_cases() -> None:
@@ -212,4 +212,4 @@ def test_duplicate_orig_submissions_selection() -> None:
         row = silver_prods[0]
 
         # Should be 2020-01-01
-        assert row.original_approval_date == date(2020, 1, 1)
+        assert row["original_approval_date"] == date(2020, 1, 1)
