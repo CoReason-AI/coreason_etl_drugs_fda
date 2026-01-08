@@ -132,6 +132,7 @@ def drugs_fda_source(base_url: str = "https://www.fda.gov/media/89850/download")
             write_disposition="merge",
             primary_key="coreason_id",
             schema_contract={"columns": "evolve"},
+            columns=ProductSilver,
         )
         def silver_products_resource(z_content: bytes = zip_bytes) -> Iterator[ProductSilver]:
             logger.info("Generating Silver Products layer...")
@@ -143,17 +144,9 @@ def drugs_fda_source(base_url: str = "https://www.fda.gov/media/89850/download")
             # 2. Get Products
             products_lazy = _get_lazy_df_from_zip(z_content, "Products.txt")
             if products_lazy.collect_schema().len() == 0:
-                # Missing or empty products
-                # Provide dummy logic?
-                # Using empty lazy frame will result in empty collect
                 pass
 
             # 3. Transform
-            df_lazy = prepare_silver_products(products_lazy, pl.DataFrame().lazy(), approval_dates_map_exists=False)
-
-            # Re-inject map logic here?
-            # prepare_silver_products expects a lazy frame for dates.
-            # We have a dict map.
             # Convert map to lazy df
             dates_df_eager = pl.DataFrame(
                 {"appl_no": list(approval_map.keys()), "original_approval_date": list(approval_map.values())}
@@ -164,23 +157,6 @@ def drugs_fda_source(base_url: str = "https://www.fda.gov/media/89850/download")
                 dates_df_eager = dates_df_eager.with_columns(pl.col("appl_no").cast(pl.String))
 
             dates_df_lazy = dates_df_eager.lazy()
-
-            # Now call with correct df
-            # Note: _get_lazy_df_from_zip handles cleaning internally now via clean_dataframe import?
-            # Yes, updated _get_lazy_df_from_zip uses clean_dataframe from transform.
-            # prepare_silver_products ALSO calls clean_dataframe on products_lazy.
-            # Double cleaning is idempotent (snake_case of snake_case is same, strip of strip is same).
-            # But wait, to_snake_case implementation?
-            # dlt's normalize_identifier is standard.
-
-            # Important: prepare_silver_products expects products_lazy to be UNCLEANED?
-            # Or does it clean it?
-            # Looking at transform.py implementation I wrote:
-            # df = clean_dataframe(products_lazy)
-            # So prepare_silver_products cleans it.
-            # But _get_lazy_df_from_zip ALSO cleans it.
-            # clean_dataframe renames cols.
-            # If renamed twice: "ApplNo" -> "appl_no". "appl_no" -> "appl_no". Safe.
 
             df_lazy = prepare_silver_products(
                 products_lazy, dates_df_lazy, approval_dates_map_exists=not dates_df_eager.is_empty()
@@ -197,7 +173,7 @@ def drugs_fda_source(base_url: str = "https://www.fda.gov/media/89850/download")
                     prod = row.get("product_no")
                     logger.warning(f"Skipping row with missing keys: ApplNo={appl}, ProductNo={prod}")
                     continue
-                yield ProductSilver(**row)
+                yield row
             logger.info("Silver Products layer generation complete.")
 
         yield silver_products_resource()
@@ -209,6 +185,7 @@ def drugs_fda_source(base_url: str = "https://www.fda.gov/media/89850/download")
             name="FDA@DRUGS_gold_drug_product",
             write_disposition="replace",
             schema_contract={"columns": "evolve"},
+            columns=ProductGold,
         )
         def gold_products_resource(z_content: bytes = zip_bytes) -> Iterator[ProductGold]:
             logger.info("Generating Gold Products layer...")
@@ -259,6 +236,6 @@ def drugs_fda_source(base_url: str = "https://www.fda.gov/media/89850/download")
                 return
 
             for row in gold_df.to_dicts():
-                yield ProductGold(**row)
+                yield row
 
         yield gold_products_resource()

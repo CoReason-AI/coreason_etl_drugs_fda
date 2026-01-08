@@ -54,7 +54,7 @@ def test_marketing_status_lookup_fanout() -> None:
 
         row = gold_prods[0]
         # Verify it successfully joined one of them
-        assert row.marketing_status_description in ["Prescription", "DuplicateEntry"]
+        assert row["marketing_status_description"] in ["Prescription", "DuplicateEntry"]
 
 
 def test_marketing_status_lookup_dirty_ids() -> None:
@@ -92,7 +92,7 @@ def test_marketing_status_lookup_dirty_ids() -> None:
         row = gold_prods[0]
 
         # Should match the valid "1"
-        assert row.marketing_status_description == "Valid"
+        assert row["marketing_status_description"] == "Valid"
 
 
 def test_complex_integration() -> None:
@@ -145,28 +145,28 @@ def test_complex_integration() -> None:
         row = gold_prods[0]
 
         # Verify IDs (Padded)
-        assert row.appl_no == "070001"
-        assert row.product_no == "001"
+        assert row["appl_no"] == "070001"
+        assert row["product_no"] == "001"
 
         # Verify Ingredients (Split & Cleaned)
-        assert row.active_ingredients_list == ["INGA", "INGB"]
+        assert row["active_ingredients_list"] == ["INGA", "INGB"]
 
         # Verify Date (Earliest ORIG)
-        assert row.original_approval_date == date(2010, 1, 1)
+        assert row["original_approval_date"] == date(2010, 1, 1)
 
         # Verify Sponsor & Type
-        assert row.sponsor_name == "GenericCorp"
-        assert row.is_generic is True
+        assert row["sponsor_name"] == "GenericCorp"
+        assert row["is_generic"] is True
 
         # Verify Marketing Status Enriched
-        assert row.marketing_status_id == 2
-        assert row.marketing_status_description == "Over-the-Counter"
+        assert row["marketing_status_id"] == 2
+        assert row["marketing_status_description"] == "Over-the-Counter"
 
         # Verify TE
-        assert row.te_code == "AB"
+        assert row["te_code"] == "AB"
 
         # Verify Protection (Expired)
-        assert row.is_protected is False
+        assert row["is_protected"] is False
 
 
 def test_submission_date_sorting_legacy_vs_iso() -> None:
@@ -207,7 +207,7 @@ def test_submission_date_sorting_legacy_vs_iso() -> None:
         row = gold_prods[0]
 
         # Should be 1982-01-01
-        assert row.original_approval_date == date(1982, 1, 1)
+        assert row["original_approval_date"] == date(1982, 1, 1)
 
 
 def test_te_code_fanout_prevention() -> None:

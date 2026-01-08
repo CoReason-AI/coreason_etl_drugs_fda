@@ -52,7 +52,7 @@ def test_robustness_duplicate_lookups_no_explosion() -> None:
         row = gold_prods[0]
         # It should pick one of the descriptions (indeterminately if not sorted, but Polars unique takes one)
         # We just care that it IS one of them and not 2 rows.
-        assert row.marketing_status_description in ["Description A", "Description B"]
+        assert row["marketing_status_description"] in ["Description A", "Description B"]
 
 
 def test_robustness_earliest_orig_date_selection() -> None:
@@ -89,7 +89,7 @@ def test_robustness_earliest_orig_date_selection() -> None:
 
         assert len(silver_prods) == 1
         # Must be 2020-01-01
-        assert silver_prods[0].original_approval_date == date(2020, 1, 1)
+        assert silver_prods[0]["original_approval_date"] == date(2020, 1, 1)
 
 
 def test_robustness_id_padding_mismatch() -> None:
@@ -122,13 +122,13 @@ def test_robustness_id_padding_mismatch() -> None:
         assert len(silver_prods) == 1
         s_row = silver_prods[0]
         # Should have joined date successfully
-        assert s_row.appl_no == "000004"  # Normalized
-        assert s_row.product_no == "001"  # Normalized
-        assert s_row.original_approval_date == date(2020, 1, 1)
+        assert s_row["appl_no"] == "000004"  # Normalized
+        assert s_row["product_no"] == "001"  # Normalized
+        assert s_row["original_approval_date"] == date(2020, 1, 1)
 
         # Check Gold (Product + Application join)
         gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
         assert len(gold_prods) == 1
         g_row = gold_prods[0]
         # Should have joined sponsor successfully
-        assert g_row.sponsor_name == "SponsorX"
+        assert g_row["sponsor_name"] == "SponsorX"

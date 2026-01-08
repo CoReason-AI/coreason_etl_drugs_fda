@@ -44,8 +44,8 @@ def test_massive_string_resilience() -> None:
 
         # Check that the massive string was read correctly (length check)
         # Note: clean_ingredients splits by ';', so we expect one element
-        assert len(row.active_ingredients_list) == 1
-        assert len(row.active_ingredients_list[0]) == 50000
+        assert len(row["active_ingredients_list"]) == 1
+        assert len(row["active_ingredients_list"][0]) == 50000
 
 
 def test_loose_quoting_handling() -> None:
@@ -81,8 +81,8 @@ def test_loose_quoting_handling() -> None:
 
         # Verify quotes are preserved literally
         # Form is title-cased: 'Tablet "Fast"' -> 'Tablet "Fast"'
-        assert row.form == 'Tablet "Fast"'
-        assert row.strength == "10'mg"
+        assert row["form"] == 'Tablet "Fast"'
+        assert row["strength"] == "10'mg"
 
 
 def test_malformed_exclusivity_dates() -> None:
@@ -125,4 +125,4 @@ def test_malformed_exclusivity_dates() -> None:
         # when(Null).then(True).otherwise(False) -> False.
         # So it should default to False (Not Protected).
 
-        assert row.is_protected is False
+        assert row["is_protected"] is False

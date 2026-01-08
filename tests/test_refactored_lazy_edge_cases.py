@@ -76,9 +76,9 @@ def test_lazy_missing_columns() -> None:
             list(source.resources["FDA@DRUGS_silver_products"])
 
         # dlt wraps the exception. Check message or cause.
-        from pydantic import ValidationError
+        from dlt.common.schema.exceptions import DataValidationError
 
-        assert isinstance(excinfo.value.__cause__, ValidationError)
+        assert isinstance(excinfo.value.__cause__, DataValidationError)
 
 
 def test_lazy_join_type_mismatch() -> None:
@@ -110,8 +110,8 @@ def test_lazy_join_type_mismatch() -> None:
         assert len(silver_prods) == 1
         row = silver_prods[0]
         # Should have joined date
-        assert row.appl_no == "000123"
-        assert str(row.original_approval_date) == "2020-01-01"
+        assert row["appl_no"] == "000123"
+        assert str(row["original_approval_date"]) == "2020-01-01"
 
 
 def test_lazy_whitespace_keys() -> None:
@@ -141,4 +141,4 @@ def test_lazy_whitespace_keys() -> None:
 
         # It should be present as 000000
         assert len(prods) == 1
-        assert prods[0].appl_no == "000000"
+        assert prods[0]["appl_no"] == "000000"

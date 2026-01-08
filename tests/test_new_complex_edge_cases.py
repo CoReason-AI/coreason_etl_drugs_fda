@@ -44,7 +44,7 @@ def test_submissions_mixed_case_filtering() -> None:
         row = silver_prods[0]
 
         # Expect None because "orig" != "ORIG"
-        assert row.original_approval_date is None
+        assert row["original_approval_date"] is None
 
 
 def test_exclusivity_invalid_dates() -> None:
@@ -79,7 +79,7 @@ def test_exclusivity_invalid_dates() -> None:
         gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
         row = gold_prods[0]
 
-        assert row.is_protected is True
+        assert row["is_protected"] is True
 
 
 def test_ghost_records_filtering() -> None:
@@ -116,7 +116,7 @@ def test_ghost_records_filtering() -> None:
 
         # Should strictly contain 1 row (000001)
         assert len(gold_prods) == 1
-        assert gold_prods[0].appl_no == "000001"
+        assert gold_prods[0]["appl_no"] == "000001"
 
 
 def test_empty_exclusivity_file() -> None:
@@ -144,7 +144,7 @@ def test_empty_exclusivity_file() -> None:
         gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
         row = gold_prods[0]
 
-        assert row.is_protected is False
+        assert row["is_protected"] is False
 
 
 def test_submission_same_date_determinism() -> None:
@@ -179,4 +179,4 @@ def test_submission_same_date_determinism() -> None:
 
         # Should be 1 row
         assert len(silver_prods) == 1
-        assert silver_prods[0].original_approval_date == date(2000, 1, 1)
+        assert silver_prods[0]["original_approval_date"] == date(2000, 1, 1)

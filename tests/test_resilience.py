@@ -51,19 +51,19 @@ def test_resilience_ragged_lines_extra_columns() -> None:
         assert len(silver_prods) >= 1
 
         # Verify Row 1
-        r1 = next(r for r in silver_prods if r.appl_no == "000001")
-        assert r1.product_no == "001"
-        assert "ING1" in r1.active_ingredients_list
+        r1 = next(r for r in silver_prods if r["appl_no"] == "000001")
+        assert r1["product_no"] == "001"
+        assert "ING1" in r1["active_ingredients_list"]
 
         # Verify Row 2 (if present)
         # Note: If Submissions doesn't match 000002, it won't get approval date,
         # but Silver products logic requires Submissions join?
         # Silver logic joins dates with LEFT join.
         # So it should be present even if no date.
-        r2 = next((r for r in silver_prods if r.appl_no == "000002"), None)
+        r2 = next((r for r in silver_prods if r["appl_no"] == "000002"), None)
         if r2:
-            assert r2.product_no == "002"
-            assert "ING2" in r2.active_ingredients_list
+            assert r2["product_no"] == "002"
+            assert "ING2" in r2["active_ingredients_list"]
 
 
 def test_resilience_ragged_lines_missing_columns() -> None:
@@ -96,18 +96,18 @@ def test_resilience_ragged_lines_missing_columns() -> None:
         silver_prods = list(source.resources["FDA@DRUGS_silver_products"])
 
         # Row 1 OK
-        assert any(r.appl_no == "000001" for r in silver_prods)
+        assert any(r["appl_no"] == "000001" for r in silver_prods)
 
         # Row 2: Might be skipped if Pydantic validation fails (missing Form/Strength as non-empty str?)
         # Or if Polars filled with Null.
         # Silver logic: fill_null("") for Form/Strength.
         # So it should survive if Polars read it.
         # Checking if it exists
-        r2 = next((r for r in silver_prods if r.appl_no == "000002"), None)
+        r2 = next((r for r in silver_prods if r["appl_no"] == "000002"), None)
         if r2:
-            assert r2.form == "Inj"
-            assert r2.strength == ""  # Filled default
-            assert r2.active_ingredients_list == []  # Filled default
+            assert r2["form"] == "Inj"
+            assert r2["strength"] == ""  # Filled default
+            assert r2["active_ingredients_list"] == []  # Filled default
 
 
 def test_resilience_whitespace_join_keys() -> None:
@@ -142,7 +142,7 @@ def test_resilience_whitespace_join_keys() -> None:
 
         # If whitespace handling works, this should be "Matched"
         # If failed, it would be None
-        assert row.marketing_status_description == "Matched"
+        assert row["marketing_status_description"] == "Matched"
 
 
 def test_resilience_empty_optional_files() -> None:
@@ -174,8 +174,8 @@ def test_resilience_empty_optional_files() -> None:
         row = gold_prods[0]
 
         # Should just have Nones
-        assert row.marketing_status_id is None
-        assert row.te_code is None
+        assert row["marketing_status_id"] is None
+        assert row["te_code"] is None
 
 
 def test_resilience_non_ascii_ingredients() -> None:
@@ -213,7 +213,7 @@ def test_resilience_non_ascii_ingredients() -> None:
         # Actually 'µ' (U+00B5) upper() is 'Μ' (U+039C) usually.
         # Let's see what Python does.
         expected = ing_str.upper()
-        assert expected in row.active_ingredients_list
+        assert expected in row["active_ingredients_list"]
 
 
 def test_missing_submissions_skips_silver() -> None:

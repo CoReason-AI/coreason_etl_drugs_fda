@@ -44,7 +44,7 @@ def test_te_code_determinism() -> None:
 
         assert len(gold_prods) == 1
         # Should pick "AB" (first)
-        assert gold_prods[0].te_code == "AB"
+        assert gold_prods[0]["te_code"] == "AB"
 
 
 def test_date_parsing_invalid_dates() -> None:
@@ -95,6 +95,6 @@ def test_massive_ingredient_list() -> None:
         assert len(silver_res) == 1
         row = silver_res[0]
 
-        assert len(row.active_ingredients_list) == 1000
-        assert row.active_ingredients_list[0] == "ING0"
-        assert row.active_ingredients_list[999] == "ING999"
+        assert len(row["active_ingredients_list"]) == 1000
+        assert row["active_ingredients_list"][0] == "ING0"
+        assert row["active_ingredients_list"][999] == "ING999"

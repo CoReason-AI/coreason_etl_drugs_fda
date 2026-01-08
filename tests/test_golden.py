@@ -68,7 +68,8 @@ def test_silver_logic_golden() -> None:
     expected = expected_df.row(0, named=True)
 
     # Convert Pydantic model to dict for comparison, handling UUID/Date conversion
-    row_dict = row.model_dump()
+    # row is now a dict already (from source yielding dicts)
+    row_dict = row
 
     # Assertions
     # Strict equality check involves ensuring every field matches.
