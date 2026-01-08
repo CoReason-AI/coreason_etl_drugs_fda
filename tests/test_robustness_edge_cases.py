@@ -38,14 +38,14 @@ def test_robustness_duplicate_lookups_no_explosion() -> None:
 
     buffer.seek(0)
 
-    with patch("requests.get") as mock_get:
+    with patch("dlt.sources.helpers.requests.get") as mock_get:
         mock_response = MagicMock()
         mock_response.content = buffer.getvalue()
         mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
+        gold_prods = list(source.resources["fda_drugs_gold_drug_product"])
 
         # Should strictly be 1 row
         assert len(gold_prods) == 1
@@ -78,14 +78,14 @@ def test_robustness_earliest_orig_date_selection() -> None:
 
     buffer.seek(0)
 
-    with patch("requests.get") as mock_get:
+    with patch("dlt.sources.helpers.requests.get") as mock_get:
         mock_response = MagicMock()
         mock_response.content = buffer.getvalue()
         mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        silver_prods = list(source.resources["FDA@DRUGS_silver_products"])
+        silver_prods = list(source.resources["fda_drugs_silver_products"])
 
         assert len(silver_prods) == 1
         # Must be 2020-01-01
@@ -109,7 +109,7 @@ def test_robustness_id_padding_mismatch() -> None:
 
     buffer.seek(0)
 
-    with patch("requests.get") as mock_get:
+    with patch("dlt.sources.helpers.requests.get") as mock_get:
         mock_response = MagicMock()
         mock_response.content = buffer.getvalue()
         mock_response.raise_for_status.return_value = None
@@ -118,7 +118,7 @@ def test_robustness_id_padding_mismatch() -> None:
         source = drugs_fda_source()
 
         # Check Silver (Product + Submission join)
-        silver_prods = list(source.resources["FDA@DRUGS_silver_products"])
+        silver_prods = list(source.resources["fda_drugs_silver_products"])
         assert len(silver_prods) == 1
         s_row = silver_prods[0]
         # Should have joined date successfully
@@ -127,7 +127,7 @@ def test_robustness_id_padding_mismatch() -> None:
         assert s_row.original_approval_date == date(2020, 1, 1)
 
         # Check Gold (Product + Application join)
-        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
+        gold_prods = list(source.resources["fda_drugs_gold_drug_product"])
         assert len(gold_prods) == 1
         g_row = gold_prods[0]
         # Should have joined sponsor successfully

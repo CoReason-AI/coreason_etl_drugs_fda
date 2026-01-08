@@ -31,7 +31,7 @@ def test_lazy_zero_row_inputs() -> None:
 
     buffer.seek(0)
 
-    with patch("requests.get") as mock_get:
+    with patch("dlt.sources.helpers.requests.get") as mock_get:
         mock_response = MagicMock()
         mock_response.content = buffer.getvalue()
         mock_response.raise_for_status.return_value = None
@@ -39,10 +39,10 @@ def test_lazy_zero_row_inputs() -> None:
 
         source = drugs_fda_source()
         # Should yield empty list, not crash
-        silver_prods = list(source.resources["FDA@DRUGS_silver_products"])
+        silver_prods = list(source.resources["fda_drugs_silver_products"])
         assert len(silver_prods) == 0
 
-        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
+        gold_prods = list(source.resources["fda_drugs_gold_drug_product"])
         assert len(gold_prods) == 0
 
 
@@ -63,7 +63,7 @@ def test_lazy_missing_columns() -> None:
 
     buffer.seek(0)
 
-    with patch("requests.get") as mock_get:
+    with patch("dlt.sources.helpers.requests.get") as mock_get:
         mock_response = MagicMock()
         mock_response.content = buffer.getvalue()
         mock_response.raise_for_status.return_value = None
@@ -73,7 +73,7 @@ def test_lazy_missing_columns() -> None:
 
         # Should fail when validating against ProductSilver
         with pytest.raises(ResourceExtractionError) as excinfo:
-            list(source.resources["FDA@DRUGS_silver_products"])
+            list(source.resources["fda_drugs_silver_products"])
 
         # dlt wraps the exception. Check message or cause.
         from pydantic import ValidationError
@@ -98,14 +98,14 @@ def test_lazy_join_type_mismatch() -> None:
 
     buffer.seek(0)
 
-    with patch("requests.get") as mock_get:
+    with patch("dlt.sources.helpers.requests.get") as mock_get:
         mock_response = MagicMock()
         mock_response.content = buffer.getvalue()
         mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        silver_prods = list(source.resources["FDA@DRUGS_silver_products"])
+        silver_prods = list(source.resources["fda_drugs_silver_products"])
 
         assert len(silver_prods) == 1
         row = silver_prods[0]
@@ -129,7 +129,7 @@ def test_lazy_whitespace_keys() -> None:
 
     buffer.seek(0)
 
-    with patch("requests.get") as mock_get:
+    with patch("dlt.sources.helpers.requests.get") as mock_get:
         mock_response = MagicMock()
         mock_response.content = buffer.getvalue()
         mock_response.raise_for_status.return_value = None
@@ -137,7 +137,7 @@ def test_lazy_whitespace_keys() -> None:
 
         source = drugs_fda_source()
 
-        prods = list(source.resources["FDA@DRUGS_silver_products"])
+        prods = list(source.resources["fda_drugs_silver_products"])
 
         # It should be present as 000000
         assert len(prods) == 1

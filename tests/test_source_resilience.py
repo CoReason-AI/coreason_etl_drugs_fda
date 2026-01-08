@@ -13,6 +13,7 @@ from unittest.mock import MagicMock, patch
 from zipfile import BadZipFile
 
 import pytest
+import requests
 
 from coreason_etl_drugs_fda.source import drugs_fda_source
 
@@ -25,24 +26,19 @@ def test_source_not_a_zip() -> None:
     """
     mock_content = b"This is not a zip file"
 
-    with patch("requests.get") as mock_get:
+    # Patch dlt.sources.helpers.requests.get
+    with patch("dlt.sources.helpers.requests.get") as mock_get:
         mock_response = MagicMock()
         mock_response.content = mock_content
         mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
 
-        # drugs_fda_source is a dlt source function.
-        # Exceptions raised inside the source function body during initialization
-        # (before yielding resources) are often wrapped by dlt in SourceDataExtractionError
-        # or similar, OR they might bubble up if they happen before dlt machinery takes over.
-
-        # But wait, looking at the traceback, it IS BadZipFile.
-        # Try iterating the source to trigger execution if dlt makes it lazy?
-        # But existing test `test_source_resilience.py` failed ON definition.
-
-        # Let's catch Exception and check type name to be safe against dlt wrapping or import mismatches.
-
         try:
+            # We iterate to force execution if it's a generator, but drugs_fda_source returns a DltSource object immediately,
+            # however, the body of the function runs immediately in the current implementation?
+            # No, dlt sources are decorated functions.
+            # But the logic inside `drugs_fda_source` (fetching the zip) runs BEFORE yielding resources.
+            # So calling `drugs_fda_source()` triggers the download.
             drugs_fda_source()
         except Exception as e:
             # Check if it is BadZipFile
@@ -63,7 +59,8 @@ def test_source_empty_zip() -> None:
         pass  # Empty
     buffer.seek(0)
 
-    with patch("requests.get") as mock_get:
+    # Patch dlt.sources.helpers.requests.get
+    with patch("dlt.sources.helpers.requests.get") as mock_get:
         mock_response = MagicMock()
         mock_response.content = buffer.getvalue()
         mock_response.raise_for_status.return_value = None
@@ -82,9 +79,8 @@ def test_source_http_error() -> None:
     """
     Test that HTTP errors are raised.
     """
-    import requests
-
-    with patch("requests.get") as mock_get:
+    # Patch dlt.sources.helpers.requests.get
+    with patch("dlt.sources.helpers.requests.get") as mock_get:
         mock_response = MagicMock()
         mock_response.raise_for_status.side_effect = requests.HTTPError("404 Not Found")
         mock_get.return_value = mock_response

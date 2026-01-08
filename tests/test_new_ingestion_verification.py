@@ -43,7 +43,7 @@ def test_submissions_ingestion_and_orig_filtering() -> None:
     buffer.seek(0)
     mock_content = buffer.getvalue()
 
-    with patch("requests.get") as mock_get:
+    with patch("dlt.sources.helpers.requests.get") as mock_get:
         mock_response = MagicMock()
         mock_response.content = mock_content
         mock_response.raise_for_status.return_value = None
@@ -51,7 +51,7 @@ def test_submissions_ingestion_and_orig_filtering() -> None:
 
         source = drugs_fda_source()
         # check silver products for original approval date
-        silver_prods = list(source.resources["FDA@DRUGS_silver_products"])
+        silver_prods = list(source.resources["fda_drugs_silver_products"])
         assert len(silver_prods) == 1
         row = silver_prods[0]
 
@@ -99,14 +99,14 @@ def test_exclusivity_aggregation_and_protection_status() -> None:
     buffer.seek(0)
     mock_content = buffer.getvalue()
 
-    with patch("requests.get") as mock_get:
+    with patch("dlt.sources.helpers.requests.get") as mock_get:
         mock_response = MagicMock()
         mock_response.content = mock_content
         mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
+        gold_prods = list(source.resources["fda_drugs_gold_drug_product"])
         assert len(gold_prods) == 3
 
         # Row 1: Protected

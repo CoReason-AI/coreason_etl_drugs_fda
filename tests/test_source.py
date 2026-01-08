@@ -56,7 +56,7 @@ def test_drugs_fda_source_extraction(mock_zip_content: bytes) -> None:
     Test that the source correctly extracts, parses, and cleans data from the ZIP.
     Also verifies the 'silver_products' resource.
     """
-    with patch("requests.get") as mock_get:
+    with patch("dlt.sources.helpers.requests.get") as mock_get:
         mock_response = MagicMock()
         mock_response.content = mock_zip_content
         mock_response.raise_for_status.return_value = None
@@ -67,12 +67,12 @@ def test_drugs_fda_source_extraction(mock_zip_content: bytes) -> None:
 
         # Check resources
         resources = source.resources
-        assert "FDA@DRUGS_bronze_fda__products" in resources
-        assert "FDA@DRUGS_bronze_fda__submissions" in resources
-        assert "FDA@DRUGS_silver_products" in resources
+        assert "fda_drugs_bronze_fda_products" in resources
+        assert "fda_drugs_bronze_fda_submissions" in resources
+        assert "fda_drugs_silver_products" in resources
 
         # 1. Verify Raw Products
-        raw_prod = list(resources["FDA@DRUGS_bronze_fda__products"])
+        raw_prod = list(resources["fda_drugs_bronze_fda_products"])
         assert len(raw_prod) == 2
         assert raw_prod[0]["appl_no"] == "000004"
         # Raw layer keeps original name (snake_cased) but not transformed yet?
@@ -81,7 +81,7 @@ def test_drugs_fda_source_extraction(mock_zip_content: bytes) -> None:
         assert raw_prod[0]["active_ingredient"] == "HYDROXYAMPHETAMINE HYDROBROMIDE"
 
         # 2. Verify Silver Products
-        silver_prod = list(resources["FDA@DRUGS_silver_products"])
+        silver_prod = list(resources["fda_drugs_silver_products"])
         assert len(silver_prod) == 2
 
         row1 = silver_prod[0]
@@ -115,14 +115,14 @@ def test_silver_products_legacy_date(mock_zip_content: bytes) -> None:
     buffer.seek(0)
     mock_content = buffer.getvalue()
 
-    with patch("requests.get") as mock_get:
+    with patch("dlt.sources.helpers.requests.get") as mock_get:
         mock_response = MagicMock()
         mock_response.content = mock_content
         mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        silver_prod = list(source.resources["FDA@DRUGS_silver_products"])
+        silver_prod = list(source.resources["fda_drugs_silver_products"])
         row = silver_prod[0]
 
         assert row.original_approval_date == date(1982, 1, 1)
@@ -167,7 +167,7 @@ def test_silver_products_empty_dates() -> None:
     buffer.seek(0)
     mock_content = buffer.getvalue()
 
-    with patch("requests.get") as mock_get:
+    with patch("dlt.sources.helpers.requests.get") as mock_get:
         mock_response = MagicMock()
         mock_response.content = mock_content
         mock_response.raise_for_status.return_value = None
@@ -175,7 +175,7 @@ def test_silver_products_empty_dates() -> None:
 
         source = drugs_fda_source()
         # Should yield silver products, but with null dates
-        silver_prod = list(source.resources["FDA@DRUGS_silver_products"])
+        silver_prod = list(source.resources["fda_drugs_silver_products"])
         assert len(silver_prod) == 1
         assert silver_prod[0].original_approval_date is None
 
@@ -191,7 +191,7 @@ def test_silver_products_validation_error() -> None:
     buffer.seek(0)
     mock_content = buffer.getvalue()
 
-    with patch("requests.get") as mock_get:
+    with patch("dlt.sources.helpers.requests.get") as mock_get:
         mock_response = MagicMock()
         mock_response.content = mock_content
         mock_response.raise_for_status.return_value = None
@@ -201,7 +201,7 @@ def test_silver_products_validation_error() -> None:
 
         # dlt wraps exceptions in ResourceExtractionError
         with pytest.raises(ResourceExtractionError) as excinfo:
-            list(source.resources["FDA@DRUGS_silver_products"])
+            list(source.resources["fda_drugs_silver_products"])
 
         # Verify it was a ValidationError
         assert isinstance(excinfo.value.__cause__, ValidationError)
@@ -249,14 +249,14 @@ def test_gold_products_logic() -> None:
     buffer.seek(0)
     mock_content = buffer.getvalue()
 
-    with patch("requests.get") as mock_get:
+    with patch("dlt.sources.helpers.requests.get") as mock_get:
         mock_response = MagicMock()
         mock_response.content = mock_content
         mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
+        gold_prods = list(source.resources["fda_drugs_gold_drug_product"])
         assert len(gold_prods) == 2
 
         # Row 1: NDA, Protected, Has Marketing
@@ -298,14 +298,14 @@ def test_gold_products_missing_aux_files() -> None:
     buffer.seek(0)
     mock_content = buffer.getvalue()
 
-    with patch("requests.get") as mock_get:
+    with patch("dlt.sources.helpers.requests.get") as mock_get:
         mock_response = MagicMock()
         mock_response.content = mock_content
         mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
+        gold_prods = list(source.resources["fda_drugs_gold_drug_product"])
         assert len(gold_prods) == 1
         row = gold_prods[0]
 
@@ -334,14 +334,14 @@ def test_gold_products_missing_appl_type_column() -> None:
     buffer.seek(0)
     mock_content = buffer.getvalue()
 
-    with patch("requests.get") as mock_get:
+    with patch("dlt.sources.helpers.requests.get") as mock_get:
         mock_response = MagicMock()
         mock_response.content = mock_content
         mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
+        gold_prods = list(source.resources["fda_drugs_gold_drug_product"])
         row = gold_prods[0]
 
         assert row.sponsor_name == "SponsorX"
@@ -359,7 +359,7 @@ def test_source_skips_silver_if_missing_files() -> None:
     buffer.seek(0)
     mock_content = buffer.getvalue()
 
-    with patch("requests.get") as mock_get:
+    with patch("dlt.sources.helpers.requests.get") as mock_get:
         mock_response = MagicMock()
         mock_response.content = mock_content
         mock_response.raise_for_status.return_value = None
@@ -368,9 +368,9 @@ def test_source_skips_silver_if_missing_files() -> None:
         source = drugs_fda_source()
         resources = source.resources
 
-        assert "FDA@DRUGS_bronze_fda__products" in resources
-        assert "FDA@DRUGS_silver_products" not in resources  # Should be skipped
-        assert "FDA@DRUGS_gold_drug_product" in resources  # Should be present (only depends on Products)
+        assert "fda_drugs_bronze_fda_products" in resources
+        assert "fda_drugs_silver_products" not in resources  # Should be skipped
+        assert "fda_drugs_gold_drug_product" in resources  # Should be present (only depends on Products)
 
     # Case 2: No Products -> Silver and Gold skipped
     buffer = io.BytesIO()
@@ -378,7 +378,7 @@ def test_source_skips_silver_if_missing_files() -> None:
         z.writestr("Submissions.txt", "ApplNo\n1")
     buffer.seek(0)
 
-    with patch("requests.get") as mock_get:
+    with patch("dlt.sources.helpers.requests.get") as mock_get:
         mock_response = MagicMock()
         mock_response.content = buffer.getvalue()
         mock_response.raise_for_status.return_value = None
@@ -386,8 +386,8 @@ def test_source_skips_silver_if_missing_files() -> None:
 
         source = drugs_fda_source()
         resources = source.resources
-        assert "FDA@DRUGS_silver_products" not in resources
-        assert "FDA@DRUGS_gold_drug_product" not in resources
+        assert "fda_drugs_silver_products" not in resources
+        assert "fda_drugs_gold_drug_product" not in resources
 
 
 def test_gold_products_empty_source_file() -> None:
@@ -399,7 +399,7 @@ def test_gold_products_empty_source_file() -> None:
 
     buffer.seek(0)
 
-    with patch("requests.get") as mock_get:
+    with patch("dlt.sources.helpers.requests.get") as mock_get:
         mock_response = MagicMock()
         mock_response.content = buffer.getvalue()
         mock_response.raise_for_status.return_value = None
@@ -408,5 +408,5 @@ def test_gold_products_empty_source_file() -> None:
         source = drugs_fda_source()
         # Gold resource is yielded because Products.txt is in zip
         # But iterating it should yield nothing (return early)
-        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
+        gold_prods = list(source.resources["fda_drugs_gold_drug_product"])
         assert len(gold_prods) == 0

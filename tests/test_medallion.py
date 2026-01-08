@@ -26,9 +26,9 @@ def test_organize_schemas_postgres() -> None:
     # Mock Tables in Default Schema (using dlt normalized names based on our check)
     # Using the 'fd_aa_...' structure found in verification
     mock_pipeline.default_schema.tables.keys.return_value = [
-        "fd_aa_drugs_bronze_fda_products",
-        "fd_aa_drugs_silver_products",
-        "fd_aa_drugs_gold_drug_product",
+        "fda_drugs_bronze_fda_products",
+        "fda_drugs_silver_products",
+        "fda_drugs_gold_drug_product",
         "other_table",
         "_dlt_loads",
     ]
@@ -47,15 +47,15 @@ def test_organize_schemas_postgres() -> None:
 
     # Verify Table Moves
     # Bronze
-    expected_bronze = 'ALTER TABLE "fda_data"."fd_aa_drugs_bronze_fda_products" SET SCHEMA "bronze";'
+    expected_bronze = 'ALTER TABLE "fda_data"."fda_drugs_bronze_fda_products" SET SCHEMA "bronze";'
     mock_client.execute_sql.assert_any_call(expected_bronze)
 
     # Silver
-    expected_silver = 'ALTER TABLE "fda_data"."fd_aa_drugs_silver_products" SET SCHEMA "silver";'
+    expected_silver = 'ALTER TABLE "fda_data"."fda_drugs_silver_products" SET SCHEMA "silver";'
     mock_client.execute_sql.assert_any_call(expected_silver)
 
     # Gold
-    expected_gold = 'ALTER TABLE "fda_data"."fd_aa_drugs_gold_drug_product" SET SCHEMA "gold";'
+    expected_gold = 'ALTER TABLE "fda_data"."fda_drugs_gold_drug_product" SET SCHEMA "gold";'
     mock_client.execute_sql.assert_any_call(expected_gold)
 
     # Ensure unrelated tables are not moved
@@ -80,7 +80,7 @@ def test_organize_schemas_exception_handling() -> None:
     """Test that exceptions during table moves are caught and logged."""
     mock_pipeline = MagicMock()
     mock_pipeline.destination.destination_name = "postgres"
-    mock_pipeline.default_schema.tables.keys.return_value = ["fd_aa_drugs_bronze_table"]
+    mock_pipeline.default_schema.tables.keys.return_value = ["fda_drugs_bronze_table"]
 
     mock_client = MagicMock()
     mock_pipeline.sql_client.return_value = mock_client

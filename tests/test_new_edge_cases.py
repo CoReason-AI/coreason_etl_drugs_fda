@@ -47,14 +47,14 @@ def test_search_vector_full_complexity() -> None:
         # TE missing
 
     buffer.seek(0)
-    with patch("requests.get") as mock_get:
+    with patch("dlt.sources.helpers.requests.get") as mock_get:
         mock_response = MagicMock()
         mock_response.content = buffer.getvalue()
         mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
+        gold_prods = list(source.resources["fda_drugs_gold_drug_product"])
         row = gold_prods[0]
 
         # Expected: "TRÂDEMARK® INGA INGB SPÖNSÖR" (Uppercased)
@@ -85,14 +85,14 @@ def test_exclusivity_boundary_today() -> None:
         z.writestr("Exclusivity.txt", f"ApplNo\tProductNo\tExclusivityDate\n000001\t001\t{today_str}")
 
     buffer.seek(0)
-    with patch("requests.get") as mock_get:
+    with patch("dlt.sources.helpers.requests.get") as mock_get:
         mock_response = MagicMock()
         mock_response.content = buffer.getvalue()
         mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
+        gold_prods = list(source.resources["fda_drugs_gold_drug_product"])
         row = gold_prods[0]
 
         # Should be NOT protected because date < max_date is False (date == max_date)
@@ -199,14 +199,14 @@ def test_duplicate_orig_submissions_selection() -> None:
         )
 
     buffer.seek(0)
-    with patch("requests.get") as mock_get:
+    with patch("dlt.sources.helpers.requests.get") as mock_get:
         mock_response = MagicMock()
         mock_response.content = buffer.getvalue()
         mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        silver_prods = list(source.resources["FDA@DRUGS_silver_products"])
+        silver_prods = list(source.resources["fda_drugs_silver_products"])
 
         assert len(silver_prods) == 1
         row = silver_prods[0]

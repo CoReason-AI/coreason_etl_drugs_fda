@@ -14,13 +14,13 @@ from typing import Any, Dict, Iterator, List
 
 import dlt
 import polars as pl
-import requests
 from dlt.sources import DltResource
+from dlt.sources.helpers import requests
 
+from coreason_etl_drugs_fda.files import _get_lazy_df_from_zip, _read_file_from_zip
 from coreason_etl_drugs_fda.gold import ProductGold
 from coreason_etl_drugs_fda.silver import ProductSilver
 from coreason_etl_drugs_fda.transform import (
-    clean_dataframe,
     extract_orig_dates,
     prepare_gold_products,
     prepare_silver_products,
@@ -40,53 +40,6 @@ TARGET_FILES = [
 ]
 
 
-def _read_csv_bytes(content: bytes) -> pl.DataFrame:
-    """Reads CSV bytes into Polars DataFrame with standard settings."""
-    if not content:
-        return pl.DataFrame()
-
-    return pl.read_csv(
-        content,
-        separator="\t",
-        quote_char=None,
-        encoding="cp1252",
-        ignore_errors=True,
-        truncate_ragged_lines=True,
-        infer_schema_length=10000,
-    )
-
-
-def _read_file_from_zip(zip_content: bytes, filename: str) -> Iterator[List[Dict[str, Any]]]:
-    """Reads a specific file from the zip content and yields it as dicts."""
-    with zipfile.ZipFile(io.BytesIO(zip_content)) as z:
-        if filename not in z.namelist():
-            return
-
-        with z.open(filename) as f:
-            df = _read_csv_bytes(f.read())
-            # For Bronze, we keep it eager as we yield dicts immediately
-            df = clean_dataframe(df)
-            # Since we pass DF, we get DF back.
-            if isinstance(df, pl.LazyFrame):
-                # Should not happen given input is DataFrame, but for type safety if logic changes
-                df = df.collect()  # pragma: no cover
-            yield df.to_dicts()
-
-
-def _get_lazy_df_from_zip(zip_content: bytes, filename: str) -> pl.LazyFrame:
-    """Helper to get a LazyFrame from a file in zip content, handling existence and emptiness."""
-    with zipfile.ZipFile(io.BytesIO(zip_content)) as z:
-        if filename not in z.namelist():
-            return pl.DataFrame().lazy()
-        with z.open(filename) as f:
-            eager = _read_csv_bytes(f.read())
-            if eager.is_empty():
-                return pl.DataFrame().lazy()
-            # Convert to lazy IMMEDIATELY, then clean
-            df = eager.lazy()
-            return clean_dataframe(df)
-
-
 @dlt.source  # type: ignore[misc]
 def drugs_fda_source(base_url: str = "https://www.fda.gov/media/89850/download") -> Iterator[DltResource]:
     """
@@ -95,6 +48,7 @@ def drugs_fda_source(base_url: str = "https://www.fda.gov/media/89850/download")
     Also yields a 'silver_products' resource with enriched data.
     """
     logger.info(f"Starting Drugs@FDA download from {base_url}")
+    # Use dlt's built-in requests helper for retries and timeouts
     response = requests.get(base_url, stream=True)
     response.raise_for_status()
     zip_bytes = response.content
@@ -112,9 +66,12 @@ def drugs_fda_source(base_url: str = "https://www.fda.gov/media/89850/download")
 
     # 1. Yield Raw Resources (Bronze)
     for filename in files_present:
+        # Use explicit 'fda_drugs_' prefix to avoid 'fd_aa_drugs_' normalization
+        # CORRECTED: Single underscore between 'fda' and product name.
+        resource_name = f"fda_drugs_bronze_fda_{to_snake_case(filename.replace('.txt', ''))}"
 
         @dlt.resource(  # type: ignore[misc]
-            name=f"FDA@DRUGS_bronze_fda__{to_snake_case(filename.replace('.txt', ''))}",
+            name=resource_name,
             write_disposition="replace",
             schema_contract={"columns": "evolve"},
         )
@@ -128,7 +85,7 @@ def drugs_fda_source(base_url: str = "https://www.fda.gov/media/89850/download")
     if "Products.txt" in files_present and "Submissions.txt" in files_present:
 
         @dlt.resource(  # type: ignore[misc]
-            name="FDA@DRUGS_silver_products",
+            name="fda_drugs_silver_products",
             write_disposition="merge",
             primary_key="coreason_id",
             schema_contract={"columns": "evolve"},
@@ -144,17 +101,10 @@ def drugs_fda_source(base_url: str = "https://www.fda.gov/media/89850/download")
             products_lazy = _get_lazy_df_from_zip(z_content, "Products.txt")
             if products_lazy.collect_schema().len() == 0:
                 # Missing or empty products
-                # Provide dummy logic?
-                # Using empty lazy frame will result in empty collect
                 pass
 
             # 3. Transform
-            df_lazy = prepare_silver_products(products_lazy, pl.DataFrame().lazy(), approval_dates_map_exists=False)
-
-            # Re-inject map logic here?
-            # prepare_silver_products expects a lazy frame for dates.
-            # We have a dict map.
-            # Convert map to lazy df
+            # Re-inject map logic here
             dates_df_eager = pl.DataFrame(
                 {"appl_no": list(approval_map.keys()), "original_approval_date": list(approval_map.values())}
             )
@@ -164,23 +114,6 @@ def drugs_fda_source(base_url: str = "https://www.fda.gov/media/89850/download")
                 dates_df_eager = dates_df_eager.with_columns(pl.col("appl_no").cast(pl.String))
 
             dates_df_lazy = dates_df_eager.lazy()
-
-            # Now call with correct df
-            # Note: _get_lazy_df_from_zip handles cleaning internally now via clean_dataframe import?
-            # Yes, updated _get_lazy_df_from_zip uses clean_dataframe from transform.
-            # prepare_silver_products ALSO calls clean_dataframe on products_lazy.
-            # Double cleaning is idempotent (snake_case of snake_case is same, strip of strip is same).
-            # But wait, to_snake_case implementation?
-            # dlt's normalize_identifier is standard.
-
-            # Important: prepare_silver_products expects products_lazy to be UNCLEANED?
-            # Or does it clean it?
-            # Looking at transform.py implementation I wrote:
-            # df = clean_dataframe(products_lazy)
-            # So prepare_silver_products cleans it.
-            # But _get_lazy_df_from_zip ALSO cleans it.
-            # clean_dataframe renames cols.
-            # If renamed twice: "ApplNo" -> "appl_no". "appl_no" -> "appl_no". Safe.
 
             df_lazy = prepare_silver_products(
                 products_lazy, dates_df_lazy, approval_dates_map_exists=not dates_df_eager.is_empty()
@@ -206,7 +139,7 @@ def drugs_fda_source(base_url: str = "https://www.fda.gov/media/89850/download")
     if "Products.txt" in files_present:
 
         @dlt.resource(  # type: ignore[misc]
-            name="FDA@DRUGS_gold_drug_product",
+            name="fda_drugs_gold_drug_product",
             write_disposition="replace",
             schema_contract={"columns": "evolve"},
         )
@@ -214,15 +147,8 @@ def drugs_fda_source(base_url: str = "https://www.fda.gov/media/89850/download")
             logger.info("Generating Gold Products layer...")
 
             # 1. Base Silver
-            # We need to replicate the Silver setup logic to get the base DF
-            # Ideally we reuse code.
-            # Let's verify files for Silver requirements again inside here or just assume best effort?
-            # Gold works even if Submissions missing (just no dates).
-            # prepare_silver_products handles empty dates map.
-
-            # Dates Map
-            approval_map: Dict[str, str] = {}
-            if "Submissions.txt" in z.namelist():
+            approval_map: dict[str, str] = {}
+            if "Submissions.txt" in files_present:
                 submissions_lazy = _get_lazy_df_from_zip(z_content, "Submissions.txt")
                 approval_map = extract_orig_dates(submissions_lazy)
 

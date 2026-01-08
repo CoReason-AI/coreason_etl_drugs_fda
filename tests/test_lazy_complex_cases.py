@@ -45,7 +45,7 @@ def test_lazy_type_inference_trap() -> None:
 
     buffer.seek(0)
 
-    with patch("requests.get") as mock_get:
+    with patch("dlt.sources.helpers.requests.get") as mock_get:
         mock_response = MagicMock()
         mock_response.content = buffer.getvalue()
         mock_response.raise_for_status.return_value = None
@@ -68,7 +68,7 @@ def test_lazy_type_inference_trap() -> None:
         from pydantic import ValidationError
 
         with pytest.raises(ResourceExtractionError) as excinfo:
-            list(source.resources["FDA@DRUGS_silver_products"])
+            list(source.resources["fda_drugs_silver_products"])
 
         # Verify it reached Pydantic validation (proving Polars read it successfully)
         assert isinstance(excinfo.value.__cause__, ValidationError)
@@ -92,14 +92,14 @@ def test_lazy_deduplication_fanout() -> None:
 
     buffer.seek(0)
 
-    with patch("requests.get") as mock_get:
+    with patch("dlt.sources.helpers.requests.get") as mock_get:
         mock_response = MagicMock()
         mock_response.content = buffer.getvalue()
         mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
+        gold_prods = list(source.resources["fda_drugs_gold_drug_product"])
 
         assert len(gold_prods) == 1
         assert gold_prods[0].marketing_status_description == "Desc"
@@ -121,14 +121,14 @@ def test_massive_field_handling() -> None:
 
     buffer.seek(0)
 
-    with patch("requests.get") as mock_get:
+    with patch("dlt.sources.helpers.requests.get") as mock_get:
         mock_response = MagicMock()
         mock_response.content = buffer.getvalue()
         mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        silver_prods = list(source.resources["FDA@DRUGS_silver_products"])
+        silver_prods = list(source.resources["fda_drugs_silver_products"])
 
         assert len(silver_prods) == 1
         # Check that ingredient list has the massive string
@@ -153,14 +153,14 @@ def test_mixed_newline_formats() -> None:
 
     buffer.seek(0)
 
-    with patch("requests.get") as mock_get:
+    with patch("dlt.sources.helpers.requests.get") as mock_get:
         mock_response = MagicMock()
         mock_response.content = buffer.getvalue()
         mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        silver_prods = list(source.resources["FDA@DRUGS_silver_products"])
+        silver_prods = list(source.resources["fda_drugs_silver_products"])
 
         assert len(silver_prods) == 2
         ids = sorted([p.appl_no for p in silver_prods])
@@ -186,14 +186,14 @@ def test_lazy_schema_evolution_extra_columns() -> None:
 
     buffer.seek(0)
 
-    with patch("requests.get") as mock_get:
+    with patch("dlt.sources.helpers.requests.get") as mock_get:
         mock_response = MagicMock()
         mock_response.content = buffer.getvalue()
         mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
+        gold_prods = list(source.resources["fda_drugs_gold_drug_product"])
 
         assert len(gold_prods) == 1
         # Pipeline should succeed despite extra columns

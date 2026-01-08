@@ -31,7 +31,7 @@ def test_organize_schemas_idempotency() -> None:
     mock_pipeline = MagicMock()
     mock_pipeline.destination.destination_name = "postgres"
     mock_pipeline.dataset_name = "fda_data"
-    mock_pipeline.default_schema.tables.keys.return_value = ["fd_aa_drugs_bronze_t1", "fd_aa_drugs_silver_t2"]
+    mock_pipeline.default_schema.tables.keys.return_value = ["fda_drugs_bronze_t1", "fda_drugs_silver_t2"]
 
     mock_client = MagicMock()
     mock_pipeline.sql_client.return_value = mock_client
@@ -65,7 +65,7 @@ def test_organize_schemas_sql_injection_defense() -> None:
     mock_pipeline.dataset_name = "fda_data"
 
     # A nasty table name that might try to break out of quotes
-    nasty_table = 'fd_aa_drugs_bronze_"; DROP TABLE students; --'
+    nasty_table = 'fda_drugs_bronze_"; DROP TABLE students; --'
 
     mock_pipeline.default_schema.tables.keys.return_value = [nasty_table]
 
@@ -75,7 +75,7 @@ def test_organize_schemas_sql_injection_defense() -> None:
     organize_schemas(mock_pipeline)
 
     # Verify the SQL constructed
-    # expected: ALTER TABLE "fda_data"."fd_aa_drugs_bronze_"; DROP TABLE students; --" SET SCHEMA "bronze";
+    # expected: ALTER TABLE "fda_data"."fda_drugs_bronze_"; DROP TABLE students; --" SET SCHEMA "bronze";
     # The internal quotes should remain part of the identifier.
     # Postgres identifiers with double quotes need escaping if they contain double quotes.
     # Python f-string doesn't auto-escape double quotes inside the string for SQL.
@@ -103,7 +103,7 @@ def test_organize_schemas_mixed_case_normalization() -> None:
     mock_pipeline.destination.destination_name = "postgres"
     mock_pipeline.dataset_name = "fda_data"
     # Simulating a case where dlt preserved case or we have weird normalization
-    mock_pipeline.default_schema.tables.keys.return_value = ["FD_AA_DRUGS_BRONZE_UPPER", "fd_aa_drugs_Silver_Mixed"]
+    mock_pipeline.default_schema.tables.keys.return_value = ["FD_AA_DRUGS_BRONZE_UPPER", "fda_drugs_Silver_Mixed"]
 
     mock_client = MagicMock()
     mock_pipeline.sql_client.return_value = mock_client
