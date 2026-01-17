@@ -39,16 +39,9 @@ def clean_dataframe(df: FrameT) -> FrameT:
         dtypes = df.dtypes
 
     new_cols = {col: to_snake_case(col) for col in cols}
-    df = df.rename(new_cols)  # type: ignore[assignment]
+    df = df.rename(new_cols)
 
-    # polars types are a bit tricky with Union/TypeVar for with_columns, assume dynamic dispatch works
-    # Mypy might complain that df is T but we assign result of with_columns (which is T) back.
-    # Actually rename returns Self, so T.
-
-    # We need to use 'df' as the specific type to access methods safely if mypy can't infer.
-    # But dynamic methods like with_columns exist on both.
-
-    df = df.with_columns(  # type: ignore[assignment]
+    df = df.with_columns(
         [pl.col(new_cols[col]).str.strip_chars() for col, dtype in zip(cols, dtypes, strict=True) if dtype == pl.String]
     )
     return df
@@ -66,7 +59,7 @@ def normalize_ids(df: FrameT) -> FrameT:
         cols = df.columns
 
     if "appl_no" in cols:
-        df = df.with_columns(  # type: ignore[assignment]
+        df = df.with_columns(
             pl.col("appl_no")
             .cast(pl.String)
             .str.strip_chars()
@@ -76,7 +69,7 @@ def normalize_ids(df: FrameT) -> FrameT:
         )
 
     if "product_no" in cols:
-        df = df.with_columns(  # type: ignore[assignment]
+        df = df.with_columns(
             pl.col("product_no")
             .cast(pl.String)
             .str.strip_chars()
@@ -120,10 +113,10 @@ def fix_dates(df: FrameT, date_cols: list[str]) -> FrameT:
             # Historic if matches legacy string OR parsed date is older than 1982
             is_historic_expr = (pl.col(col) == legacy_str) | (parsed_date_expr < legacy_date)
 
-            df = df.with_columns(is_historic_expr.fill_null(False).alias("is_historic_record"))  # type: ignore[assignment]
+            df = df.with_columns(is_historic_expr.fill_null(False).alias("is_historic_record"))
 
             # --- Update Date Column ---
-            df = df.with_columns(  # type: ignore[assignment]
+            df = df.with_columns(
                 pl.when(pl.col(col) == legacy_str).then(pl.lit(legacy_date)).otherwise(parsed_date_expr).alias(col)
             )
 
@@ -141,7 +134,7 @@ def clean_ingredients(df: FrameT) -> FrameT:
         cols = df.columns
 
     if "active_ingredient" in cols:
-        df = df.with_columns(  # type: ignore[assignment]
+        df = df.with_columns(
             pl.col("active_ingredient")
             .str.to_uppercase()
             .str.split(";")
@@ -151,10 +144,10 @@ def clean_ingredients(df: FrameT) -> FrameT:
             .alias("active_ingredients_list")
         )
         # Drop the original column
-        df = df.drop("active_ingredient")  # type: ignore[assignment]
+        df = df.drop("active_ingredient")
     else:
         # Create empty list column if input missing
-        df = df.with_columns(pl.lit([], dtype=pl.List(pl.String)).alias("active_ingredients_list"))  # type: ignore[assignment]
+        df = df.with_columns(pl.lit([], dtype=pl.List(pl.String)).alias("active_ingredients_list"))
 
     return df
 
@@ -169,7 +162,7 @@ def clean_form(df: FrameT) -> FrameT:
         cols = df.columns
 
     if "form" in cols:
-        df = df.with_columns(pl.col("form").str.to_titlecase())  # type: ignore[assignment]
+        df = df.with_columns(pl.col("form").str.to_titlecase())
     return df
 
 

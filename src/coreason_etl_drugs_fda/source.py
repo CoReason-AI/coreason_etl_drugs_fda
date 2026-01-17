@@ -53,7 +53,7 @@ def _read_file_from_zip(zip_content: bytes, filename: str) -> List[Dict[str, Any
         with z.open(filename) as f:
             df = _read_csv_bytes(f.read())
             df = clean_dataframe(df)
-            return df.to_dicts()
+            return cast(List[Dict[str, Any]], df.to_dicts())
 
 
 def _get_lazy_df_from_zip(zip_content: bytes, filename: str) -> pl.LazyFrame:
@@ -65,7 +65,7 @@ def _get_lazy_df_from_zip(zip_content: bytes, filename: str) -> pl.LazyFrame:
             return df.lazy()
 
 
-@dlt.source(name="drugs_fda")
+@dlt.source(name="drugs_fda")  # type: ignore[misc]
 def drugs_fda_source(
     base_url: str = "https://www.fda.gov/media/89850/download",
 ) -> Iterator[DltResource]:
@@ -130,7 +130,7 @@ def drugs_fda_source(
             name=resource_name,
             write_disposition="replace",
             schema_contract={"columns": "evolve"},
-        )
+        )  # type: ignore[misc]
         def file_resource(fname: str = filename, z_content: bytes = zip_bytes) -> Iterator[List[Dict[str, Any]]]:
             yield _read_file_from_zip(z_content, fname)
 
@@ -145,7 +145,7 @@ def drugs_fda_source(
             primary_key="coreason_id",
             schema_contract={"columns": "evolve"},
             columns=ProductSilver,
-        )
+        )  # type: ignore[misc]
         def silver_products_resource(z_content: bytes = zip_bytes) -> Iterator[ProductSilver]:
             logger.info("Generating Silver Products layer...")
 
@@ -187,7 +187,7 @@ def drugs_fda_source(
             write_disposition="replace",
             schema_contract={"columns": "evolve"},
             columns=ProductGold,
-        )
+        )  # type: ignore[misc]
         def gold_products_resource(z_content: bytes = zip_bytes) -> Iterator[ProductGold]:
             logger.info("Generating Gold Products layer...")
 
