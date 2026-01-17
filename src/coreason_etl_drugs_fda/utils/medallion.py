@@ -9,7 +9,9 @@
 # Source Code: https://github.com/CoReason-AI/coreason_etl_drugs_fda
 
 from dlt.pipeline.pipeline import Pipeline
+
 from coreason_etl_drugs_fda.utils.logger import logger
+
 
 def organize_schemas(pipeline: Pipeline) -> None:
     """

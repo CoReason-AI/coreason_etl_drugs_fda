@@ -28,14 +28,14 @@ def test_gold_search_vector_edge_cases() -> None:
         z.writestr("Submissions.txt", "ApplNo\tSubmissionType\tSubmissionStatusDate\n000001\tORIG\t2020-01-01")
 
     buffer.seek(0)
-    with patch("requests.get") as mock_get:
-        mock_response = MagicMock()
+    with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
+        mock_response = MagicMock(status_code=200)
         mock_response.content = buffer.getvalue()
         mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
+        gold_prods = list(source.resources["fda_drugs_gold_products"])
         row = gold_prods[0]
         # Should be just "INGA"
         assert row["search_vector"] == "INGA"
@@ -49,14 +49,14 @@ def test_gold_search_vector_edge_cases() -> None:
         )
         z.writestr("Submissions.txt", "ApplNo\tSubmissionType\tSubmissionStatusDate\n000001\tORIG\t2020-01-01")
     buffer.seek(0)
-    with patch("requests.get") as mock_get:
-        mock_response = MagicMock()
+    with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
+        mock_response = MagicMock(status_code=200)
         mock_response.content = buffer.getvalue()
         mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
+        gold_prods = list(source.resources["fda_drugs_gold_products"])
         row = gold_prods[0]
         # Should be "MYDRUG" (uppercased)
         assert row["search_vector"] == "MYDRUG"
@@ -79,14 +79,14 @@ def test_gold_search_vector_missing_sponsor_te() -> None:
         # TE missing
 
     buffer.seek(0)
-    with patch("requests.get") as mock_get:
-        mock_response = MagicMock()
+    with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
+        mock_response = MagicMock(status_code=200)
         mock_response.content = buffer.getvalue()
         mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
+        gold_prods = list(source.resources["fda_drugs_gold_products"])
         row = gold_prods[0]
 
         # Search vector: MyDrug + IngA + "" + "" -> "MYDRUG INGA"
