@@ -3,11 +3,11 @@
 
 import io
 import zipfile
-from typing import Any, Dict, Iterator, List
+from typing import Any, Dict, Iterator, List, cast
 
 import dlt
 import polars as pl
-from curl_cffi import requests as cffi_requests  # <--- NEW IMPORT
+from curl_cffi import requests as cffi_requests
 from dlt.sources import DltResource
 
 from coreason_etl_drugs_fda.gold import ProductGold
@@ -31,6 +31,7 @@ TARGET_FILES = [
     "MarketingStatus_Lookup.txt",
 ]
 
+
 def _read_csv_bytes(content: bytes) -> pl.DataFrame:
     if not content:
         return pl.DataFrame()
@@ -44,6 +45,7 @@ def _read_csv_bytes(content: bytes) -> pl.DataFrame:
         infer_schema_length=10000,
     )
 
+
 def _read_file_from_zip(zip_content: bytes, filename: str) -> List[Dict[str, Any]]:
     with zipfile.ZipFile(io.BytesIO(zip_content)) as z:
         if filename not in z.namelist():
@@ -51,7 +53,8 @@ def _read_file_from_zip(zip_content: bytes, filename: str) -> List[Dict[str, Any
         with z.open(filename) as f:
             df = _read_csv_bytes(f.read())
             df = clean_dataframe(df)
-            return df.to_dicts()
+            return cast(List[Dict[str, Any]], df.to_dicts())
+
 
 def _get_lazy_df_from_zip(zip_content: bytes, filename: str) -> pl.LazyFrame:
     with zipfile.ZipFile(io.BytesIO(zip_content)) as z:
@@ -61,7 +64,8 @@ def _get_lazy_df_from_zip(zip_content: bytes, filename: str) -> pl.LazyFrame:
             df = _read_csv_bytes(f.read())
             return df.lazy()
 
-@dlt.source(name="drugs_fda")
+
+@dlt.source(name="drugs_fda")  # type: ignore[misc]
 def drugs_fda_source(
     base_url: str = "https://www.fda.gov/media/89850/download",
 ) -> Iterator[DltResource]:
@@ -83,16 +87,16 @@ def drugs_fda_source(
                 "Referer": landing_page,
                 "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
             },
-            timeout=120
+            timeout=120,
         )
-        
+
         if response.status_code == 200:
-            if response.content.startswith(b'PK'):
+            if response.content.startswith(b"PK"):
                 zip_bytes = response.content
                 logger.info("Download successful via curl_cffi.")
             else:
                 # If we get 200 OK but it's text (like the abuse page), fail.
-                snippet = response.content[:100].decode(errors='ignore')
+                snippet = response.content[:100].decode(errors="ignore")
                 raise ValueError(f"Downloaded content is not a ZIP. Abuse detection triggered? Content: {snippet}")
         else:
             response.raise_for_status()
@@ -119,45 +123,46 @@ def drugs_fda_source(
 
     # 4. Yield Raw Resources (Bronze)
     for filename in files_present:
-        clean_name = to_snake_case(filename.replace('.txt', ''))
+        clean_name = to_snake_case(filename.replace(".txt", ""))
         resource_name = f"fda_drugs_bronze_{clean_name}"
-        
+
         @dlt.resource(
             name=resource_name,
             write_disposition="replace",
             schema_contract={"columns": "evolve"},
-        )
+        )  # type: ignore[misc]
         def file_resource(fname: str = filename, z_content: bytes = zip_bytes) -> Iterator[List[Dict[str, Any]]]:
-            yield from _read_file_from_zip(z_content, fname)
+            yield _read_file_from_zip(z_content, fname)
 
         yield file_resource()
 
     # 5. Yield Silver Products Resource
     if "Products.txt" in files_present and "Submissions.txt" in files_present:
+
         @dlt.resource(
             name="fda_drugs_silver_products",
             write_disposition="merge",
             primary_key="coreason_id",
             schema_contract={"columns": "evolve"},
             columns=ProductSilver,
-        )
+        )  # type: ignore[misc]
         def silver_products_resource(z_content: bytes = zip_bytes) -> Iterator[ProductSilver]:
             logger.info("Generating Silver Products layer...")
-            
+
             submissions_lazy = _get_lazy_df_from_zip(z_content, "Submissions.txt")
             approval_map = extract_orig_dates(submissions_lazy)
 
             products_lazy = _get_lazy_df_from_zip(z_content, "Products.txt")
-            
+
             dates_df_eager = pl.DataFrame(
                 {"appl_no": list(approval_map.keys()), "original_approval_date": list(approval_map.values())}
             )
-            
+
             if dates_df_eager.is_empty():
                 dates_df_eager = pl.DataFrame(schema={"appl_no": pl.String, "original_approval_date": pl.String})
             else:
                 dates_df_eager = dates_df_eager.with_columns(pl.col("appl_no").cast(pl.String))
-                
+
             dates_df_lazy = dates_df_eager.lazy()
 
             df_lazy = prepare_silver_products(
@@ -169,19 +174,20 @@ def drugs_fda_source(
             for row in df.to_dicts():
                 if not row.get("appl_no") or not row.get("product_no"):
                     continue
-                yield row
+                yield cast(ProductSilver, row)
             logger.info("Silver Products layer generation complete.")
 
         yield silver_products_resource()
 
     # 6. Yield Gold Products Resource
     if "Products.txt" in files_present:
+
         @dlt.resource(
             name="fda_drugs_gold_products",
             write_disposition="replace",
             schema_contract={"columns": "evolve"},
             columns=ProductGold,
-        )
+        )  # type: ignore[misc]
         def gold_products_resource(z_content: bytes = zip_bytes) -> Iterator[ProductGold]:
             logger.info("Generating Gold Products layer...")
 
@@ -193,7 +199,7 @@ def drugs_fda_source(
             dates_df_eager = pl.DataFrame(
                 {"appl_no": list(approval_map.keys()), "original_approval_date": list(approval_map.values())}
             )
-            
+
             if dates_df_eager.is_empty():
                 dates_df_eager = pl.DataFrame(schema={"appl_no": pl.String, "original_approval_date": pl.String})
             else:
@@ -222,7 +228,7 @@ def drugs_fda_source(
                 return
 
             for row in gold_df.to_dicts():
-                yield row
+                yield cast(ProductGold, row)
             logger.info("Gold Products layer generation complete.")
 
         yield gold_products_resource()

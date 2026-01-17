@@ -11,7 +11,7 @@
 import hashlib
 import uuid
 from datetime import date
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, TypeVar, Union
 
 import polars as pl
 from pydantic import BaseModel, Field
@@ -38,7 +38,10 @@ class ProductSilver(BaseModel):  # type: ignore[misc]
     hash_md5: str
 
 
-def generate_coreason_id(df: Union[pl.DataFrame, pl.LazyFrame]) -> Union[pl.DataFrame, pl.LazyFrame]:
+FrameT = TypeVar("FrameT", bound=Union[pl.DataFrame, pl.LazyFrame])
+
+
+def generate_coreason_id(df: FrameT) -> FrameT:
     """
     Generates coreason_id using UUIDv5(NAMESPACE_FDA, f"{ApplNo}|{ProductNo}").
     Expects appl_no and product_no to be already normalized (padded strings).
@@ -67,7 +70,7 @@ def generate_coreason_id(df: Union[pl.DataFrame, pl.LazyFrame]) -> Union[pl.Data
     return df
 
 
-def generate_row_hash(df: Union[pl.DataFrame, pl.LazyFrame]) -> Union[pl.DataFrame, pl.LazyFrame]:
+def generate_row_hash(df: FrameT) -> FrameT:
     """
     Generates an MD5 hash of the row content for change detection.
     This is a simplified implementation hashing the concatenation of all columns as string.
