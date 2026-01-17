@@ -43,14 +43,14 @@ def test_silver_logic_golden() -> None:
     buffer.seek(0)
 
     # 2. Run Source
-    with patch("requests.get") as mock_get:
-        mock_response = MagicMock()
+    with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
+        mock_response = MagicMock(status_code=200)
         mock_response.content = buffer.getvalue()
         mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        silver_resource = source.resources["FDA@DRUGS_silver_products"]
+        silver_resource = source.resources["fda_drugs_silver_products"]
 
         # Consume the generator
         results = list(silver_resource)

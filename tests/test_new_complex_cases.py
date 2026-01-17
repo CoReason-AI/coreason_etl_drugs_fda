@@ -33,14 +33,14 @@ def test_te_code_determinism() -> None:
 
     buffer.seek(0)
 
-    with patch("requests.get") as mock_get:
-        mock_response = MagicMock()
+    with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
+        mock_response = MagicMock(status_code=200)
         mock_response.content = buffer.getvalue()
         mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
+        gold_prods = list(source.resources["fda_drugs_gold_products"])
 
         assert len(gold_prods) == 1
         # Should pick "AB" (first)
@@ -83,14 +83,14 @@ def test_massive_ingredient_list() -> None:
 
     buffer.seek(0)
 
-    with patch("requests.get") as mock_get:
-        mock_response = MagicMock()
+    with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
+        mock_response = MagicMock(status_code=200)
         mock_response.content = buffer.getvalue()
         mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        silver_res = list(source.resources["FDA@DRUGS_silver_products"])
+        silver_res = list(source.resources["fda_drugs_silver_products"])
 
         assert len(silver_res) == 1
         row = silver_res[0]

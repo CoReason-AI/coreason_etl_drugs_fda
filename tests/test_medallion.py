@@ -35,6 +35,7 @@ def test_organize_schemas_postgres() -> None:
 
     # Mock SQL Client
     mock_client = MagicMock()
+    mock_client.__enter__.return_value = mock_client
     mock_pipeline.sql_client.return_value = mock_client
 
     # Execute
@@ -83,6 +84,7 @@ def test_organize_schemas_exception_handling() -> None:
     mock_pipeline.default_schema.tables.keys.return_value = ["fd_aa_drugs_bronze_table"]
 
     mock_client = MagicMock()
+    mock_client.__enter__.return_value = mock_client
     mock_pipeline.sql_client.return_value = mock_client
 
     # Raise exception on execute_sql

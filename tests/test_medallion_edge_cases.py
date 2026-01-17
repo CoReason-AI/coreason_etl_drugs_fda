@@ -34,6 +34,7 @@ def test_organize_schemas_idempotency() -> None:
     mock_pipeline.default_schema.tables.keys.return_value = ["fd_aa_drugs_bronze_t1", "fd_aa_drugs_silver_t2"]
 
     mock_client = MagicMock()
+    mock_client.__enter__.return_value = mock_client
     mock_pipeline.sql_client.return_value = mock_client
 
     # First run: Success
@@ -70,6 +71,7 @@ def test_organize_schemas_sql_injection_defense() -> None:
     mock_pipeline.default_schema.tables.keys.return_value = [nasty_table]
 
     mock_client = MagicMock()
+    mock_client.__enter__.return_value = mock_client
     mock_pipeline.sql_client.return_value = mock_client
 
     organize_schemas(mock_pipeline)
@@ -106,6 +108,7 @@ def test_organize_schemas_mixed_case_normalization() -> None:
     mock_pipeline.default_schema.tables.keys.return_value = ["FD_AA_DRUGS_BRONZE_UPPER", "fd_aa_drugs_Silver_Mixed"]
 
     mock_client = MagicMock()
+    mock_client.__enter__.return_value = mock_client
     mock_pipeline.sql_client.return_value = mock_client
 
     organize_schemas(mock_pipeline)

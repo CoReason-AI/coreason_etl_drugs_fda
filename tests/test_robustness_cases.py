@@ -31,20 +31,20 @@ def test_empty_input_file_handling() -> None:
 
     buffer.seek(0)
 
-    with patch("requests.get") as mock_get:
-        mock_response = MagicMock()
+    with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
+        mock_response = MagicMock(status_code=200)
         mock_response.content = buffer.getvalue()
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
 
         # Check raw resource
-        raw_res = list(source.resources["FDA@DRUGS_bronze_fda__products"])
+        raw_res = list(source.resources["fda_drugs_bronze_products"])
         assert len(raw_res) == 0
 
         # Check silver resource (should be empty but exist)
-        if "FDA@DRUGS_silver_products" in source.resources:
-            silver_res = list(source.resources["FDA@DRUGS_silver_products"])
+        if "fda_drugs_silver_products" in source.resources:
+            silver_res = list(source.resources["fda_drugs_silver_products"])
             assert len(silver_res) == 0
 
 
@@ -63,8 +63,8 @@ def test_missing_required_columns() -> None:
 
     buffer.seek(0)
 
-    with patch("requests.get") as mock_get:
-        mock_response = MagicMock()
+    with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
+        mock_response = MagicMock(status_code=200)
         mock_response.content = buffer.getvalue()
         mock_get.return_value = mock_response
 
@@ -76,7 +76,7 @@ def test_missing_required_columns() -> None:
         # in `prepare_silver_products` and returns an empty frame if missing.
         # So it should NOT crash, but yield 0 rows (or empty list).
 
-        resources = list(source.resources["FDA@DRUGS_silver_products"])
+        resources = list(source.resources["fda_drugs_silver_products"])
         # Expect 0 rows because required key is missing
         assert len(resources) == 0
 
@@ -98,13 +98,13 @@ def test_null_keys_in_source() -> None:
 
     buffer.seek(0)
 
-    with patch("requests.get") as mock_get:
-        mock_response = MagicMock()
+    with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
+        mock_response = MagicMock(status_code=200)
         mock_response.content = buffer.getvalue()
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        silver_res = list(source.resources["FDA@DRUGS_silver_products"])
+        silver_res = list(source.resources["fda_drugs_silver_products"])
 
         # We expect at least the valid row.
         # The null row:
@@ -130,14 +130,14 @@ def test_invalid_zip_format() -> None:
     """
     Test response content is not a valid ZIP file.
     """
-    with patch("requests.get") as mock_get:
-        mock_response = MagicMock()
+    with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
+        mock_response = MagicMock(status_code=200)
         mock_response.content = b"Not a zip file"
         mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
 
-        # zipfile.ZipFile should raise BadZipFile during initialization
-        with pytest.raises(zipfile.BadZipFile):
+        # source raises ValueError if content is not a ZIP (doesn't start with PK)
+        with pytest.raises(ValueError, match="Downloaded content is not a ZIP"):
             drugs_fda_source()
 
 
@@ -153,13 +153,13 @@ def test_future_dates_handling() -> None:
 
     buffer.seek(0)
 
-    with patch("requests.get") as mock_get:
-        mock_response = MagicMock()
+    with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
+        mock_response = MagicMock(status_code=200)
         mock_response.content = buffer.getvalue()
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        res = list(source.resources["FDA@DRUGS_silver_products"])
+        res = list(source.resources["fda_drugs_silver_products"])
         assert len(res) == 1
         assert res[0]["original_approval_date"].year == 3000
 
@@ -178,13 +178,13 @@ def test_whitespace_only_ids() -> None:
 
     buffer.seek(0)
 
-    with patch("requests.get") as mock_get:
-        mock_response = MagicMock()
+    with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
+        mock_response = MagicMock(status_code=200)
         mock_response.content = buffer.getvalue()
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        res = list(source.resources["FDA@DRUGS_silver_products"])
+        res = list(source.resources["fda_drugs_silver_products"])
 
         # _clean_dataframe strips chars. "   " -> "".
         # normalize_ids pads "". "000000".

@@ -36,15 +36,15 @@ def test_resilience_ragged_lines_extra_columns() -> None:
 
     buffer.seek(0)
 
-    with patch("requests.get") as mock_get:
-        mock_response = MagicMock()
+    with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
+        mock_response = MagicMock(status_code=200)
         mock_response.content = buffer.getvalue()
         mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
         # Should process without error
-        silver_prods = list(source.resources["FDA@DRUGS_silver_products"])
+        silver_prods = list(source.resources["fda_drugs_silver_products"])
 
         # Should get 2 rows (or 1 if the second is dropped, but truncate usually keeps it)
         # truncate_ragged_lines=True usually keeps the row and ignores extra cols.
@@ -86,14 +86,14 @@ def test_resilience_ragged_lines_missing_columns() -> None:
 
     buffer.seek(0)
 
-    with patch("requests.get") as mock_get:
-        mock_response = MagicMock()
+    with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
+        mock_response = MagicMock(status_code=200)
         mock_response.content = buffer.getvalue()
         mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        silver_prods = list(source.resources["FDA@DRUGS_silver_products"])
+        silver_prods = list(source.resources["fda_drugs_silver_products"])
 
         # Row 1 OK
         assert any(r["appl_no"] == "000001" for r in silver_prods)
@@ -128,14 +128,14 @@ def test_resilience_whitespace_join_keys() -> None:
 
     buffer.seek(0)
 
-    with patch("requests.get") as mock_get:
-        mock_response = MagicMock()
+    with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
+        mock_response = MagicMock(status_code=200)
         mock_response.content = buffer.getvalue()
         mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
+        gold_prods = list(source.resources["fda_drugs_gold_products"])
 
         assert len(gold_prods) == 1
         row = gold_prods[0]
@@ -161,14 +161,14 @@ def test_resilience_empty_optional_files() -> None:
 
     buffer.seek(0)
 
-    with patch("requests.get") as mock_get:
-        mock_response = MagicMock()
+    with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
+        mock_response = MagicMock(status_code=200)
         mock_response.content = buffer.getvalue()
         mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
+        gold_prods = list(source.resources["fda_drugs_gold_products"])
 
         assert len(gold_prods) == 1
         row = gold_prods[0]
@@ -196,14 +196,14 @@ def test_resilience_non_ascii_ingredients() -> None:
 
     buffer.seek(0)
 
-    with patch("requests.get") as mock_get:
-        mock_response = MagicMock()
+    with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
+        mock_response = MagicMock(status_code=200)
         mock_response.content = buffer.getvalue()
         mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
+        gold_prods = list(source.resources["fda_drugs_gold_products"])
 
         assert len(gold_prods) == 1
         row = gold_prods[0]
@@ -233,8 +233,8 @@ def test_missing_submissions_skips_silver() -> None:
 
     buffer.seek(0)
 
-    with patch("requests.get") as mock_get:
-        mock_response = MagicMock()
+    with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
+        mock_response = MagicMock(status_code=200)
         mock_response.content = buffer.getvalue()
         mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
@@ -242,8 +242,8 @@ def test_missing_submissions_skips_silver() -> None:
         source = drugs_fda_source()
 
         # We expect bronze resources to be present (e.g. raw_fda__products)
-        assert "FDA@DRUGS_bronze_fda__products" in source.resources
-        assert "FDA@DRUGS_bronze_fda__applications" in source.resources
+        assert "fda_drugs_bronze_products" in source.resources
+        assert "fda_drugs_bronze_applications" in source.resources
 
         # But silver_products should be ABSENT because Submissions.txt is missing
-        assert "FDA@DRUGS_silver_products" not in source.resources
+        assert "fda_drugs_silver_products" not in source.resources
