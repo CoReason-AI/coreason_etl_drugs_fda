@@ -23,7 +23,9 @@ def to_snake_case(name: str) -> str:
     return str(naming.normalize_identifier(name))
 
 
-def clean_dataframe(df: Union[pl.DataFrame, pl.LazyFrame]) -> Union[pl.DataFrame, pl.LazyFrame]:
+def clean_dataframe(
+    df: Union[pl.DataFrame, pl.LazyFrame],
+) -> Union[pl.DataFrame, pl.LazyFrame]:
     """
     Cleans the dataframe by:
     1. Converting column names to snake_case.
@@ -40,12 +42,18 @@ def clean_dataframe(df: Union[pl.DataFrame, pl.LazyFrame]) -> Union[pl.DataFrame
     df = df.rename(new_cols)
 
     df = df.with_columns(
-        [pl.col(new_cols[col]).str.strip_chars() for col, dtype in zip(cols, dtypes, strict=True) if dtype == pl.String]
+        [
+            pl.col(new_cols[col]).str.strip_chars()
+            for col, dtype in zip(cols, dtypes, strict=True)
+            if dtype == pl.String
+        ]
     )
     return df
 
 
-def normalize_ids(df: Union[pl.DataFrame, pl.LazyFrame]) -> Union[pl.DataFrame, pl.LazyFrame]:
+def normalize_ids(
+    df: Union[pl.DataFrame, pl.LazyFrame],
+) -> Union[pl.DataFrame, pl.LazyFrame]:
     """
     Pads ApplNo to 6 digits and ProductNo to 3 digits.
     Handles both integer and string inputs.
@@ -78,11 +86,13 @@ def normalize_ids(df: Union[pl.DataFrame, pl.LazyFrame]) -> Union[pl.DataFrame, 
     return df
 
 
-def fix_dates(df: Union[pl.DataFrame, pl.LazyFrame], date_cols: list[str]) -> Union[pl.DataFrame, pl.LazyFrame]:
+def fix_dates(
+    df: Union[pl.DataFrame, pl.LazyFrame], date_cols: list[str]
+) -> Union[pl.DataFrame, pl.LazyFrame]:
     """
     Handles legacy string "Approved prior to Jan 1, 1982" AND dates before 1982.
-    
-    Logic: 
+
+    Logic:
     1. is_historic_record = True if:
        - Value is explicitly "Approved prior to Jan 1, 1982"
        - OR Value is a valid date strictly before 1982-01-01
@@ -106,13 +116,12 @@ def fix_dates(df: Union[pl.DataFrame, pl.LazyFrame], date_cols: list[str]) -> Un
         if schema[col] == pl.String:
             # --- FIX 1: Enhanced Historic Logic ---
             # Parse the date tentatively to check its value
-            parsed_date_expr = pl.col(col).str.slice(0, 10).str.to_date(format="%Y-%m-%d", strict=False)
-            
-            # Historic if matches legacy string OR parsed date is older than 1982
-            is_historic_expr = (
-                (pl.col(col) == legacy_str) | 
-                (parsed_date_expr < legacy_date)
+            parsed_date_expr = (
+                pl.col(col).str.slice(0, 10).str.to_date(format="%Y-%m-%d", strict=False)
             )
+
+            # Historic if matches legacy string OR parsed date is older than 1982
+            is_historic_expr = (pl.col(col) == legacy_str) | (parsed_date_expr < legacy_date)
 
             df = df.with_columns(
                 is_historic_expr.fill_null(False).alias("is_historic_record")
@@ -129,7 +138,9 @@ def fix_dates(df: Union[pl.DataFrame, pl.LazyFrame], date_cols: list[str]) -> Un
     return df
 
 
-def clean_ingredients(df: Union[pl.DataFrame, pl.LazyFrame]) -> Union[pl.DataFrame, pl.LazyFrame]:
+def clean_ingredients(
+    df: Union[pl.DataFrame, pl.LazyFrame],
+) -> Union[pl.DataFrame, pl.LazyFrame]:
     """
     Splits ActiveIngredient by semicolon, upper-cases, and trims whitespace.
     Ensures 'active_ingredients_list' column always exists.
@@ -145,7 +156,9 @@ def clean_ingredients(df: Union[pl.DataFrame, pl.LazyFrame]) -> Union[pl.DataFra
             .str.to_uppercase()
             .str.split(";")
             .list.eval(pl.element().str.strip_chars())
-            .list.eval(pl.element().filter(pl.element().str.len_bytes() > 0))  # Filter out empty strings
+            .list.eval(
+                pl.element().filter(pl.element().str.len_bytes() > 0)
+            )  # Filter out empty strings
             .fill_null(pl.lit([], dtype=pl.List(pl.String)))
             .alias("active_ingredients_list")
         )
@@ -153,12 +166,16 @@ def clean_ingredients(df: Union[pl.DataFrame, pl.LazyFrame]) -> Union[pl.DataFra
         df = df.drop("active_ingredient")
     else:
         # Create empty list column if input missing
-        df = df.with_columns(pl.lit([], dtype=pl.List(pl.String)).alias("active_ingredients_list"))
+        df = df.with_columns(
+            pl.lit([], dtype=pl.List(pl.String)).alias("active_ingredients_list")
+        )
 
     return df
 
 
-def clean_form(df: Union[pl.DataFrame, pl.LazyFrame]) -> Union[pl.DataFrame, pl.LazyFrame]:
+def clean_form(
+    df: Union[pl.DataFrame, pl.LazyFrame],
+) -> Union[pl.DataFrame, pl.LazyFrame]:
     """
     Converts the 'form' column to Title Case.
     """
@@ -192,7 +209,9 @@ def _get_empty_silver_schema() -> pl.LazyFrame:
 
 
 def prepare_silver_products(
-    products_lazy: pl.LazyFrame, approval_dates_lazy: pl.LazyFrame, approval_dates_map_exists: bool
+    products_lazy: pl.LazyFrame,
+    approval_dates_lazy: pl.LazyFrame,
+    approval_dates_map_exists: bool,
 ) -> pl.LazyFrame:
     """
     Constructs the Silver Products LazyFrame logic.
@@ -213,7 +232,9 @@ def prepare_silver_products(
         dates_df = approval_dates_lazy.with_columns(pl.col("appl_no").cast(pl.String))
     else:
         # Empty schema matches approval_map expectations
-        dates_df = pl.DataFrame(schema={"appl_no": pl.String, "original_approval_date": pl.String}).lazy()
+        dates_df = pl.DataFrame(
+            schema={"appl_no": pl.String, "original_approval_date": pl.String}
+        ).lazy()
 
     df = df.join(dates_df, on="appl_no", how="left")
 
@@ -277,10 +298,14 @@ def prepare_gold_products(
         if has_col(df_apps, "appl_type"):
             cols.append("appl_type")
         # Deterministic Deduplication
-        df_apps_sub = df_apps.select(cols).sort(cols).unique(subset=["appl_no"], keep="first")
+        df_apps_sub = (
+            df_apps.select(cols).sort(cols).unique(subset=["appl_no"], keep="first")
+        )
         silver_df = silver_df.join(df_apps_sub, on="appl_no", how="left")
     else:
-        silver_df = silver_df.with_columns([pl.lit(None).alias("sponsor_name"), pl.lit(None).alias("appl_type")])
+        silver_df = silver_df.with_columns(
+            [pl.lit(None).alias("sponsor_name"), pl.lit(None).alias("appl_type")]
+        )
 
     # 2. Join MarketingStatus
     if has_col(df_marketing, "marketing_status_id"):
@@ -290,7 +315,9 @@ def prepare_gold_products(
             .sort(cols_marketing)
             .unique(subset=["appl_no", "product_no"], keep="first")
         )
-        silver_df = silver_df.join(df_marketing_sub, on=["appl_no", "product_no"], how="left")
+        silver_df = silver_df.join(
+            df_marketing_sub, on=["appl_no", "product_no"], how="left"
+        )
     else:
         silver_df = silver_df.with_columns(pl.lit(None).alias("marketing_status_id"))
 
@@ -302,7 +329,9 @@ def prepare_gold_products(
             pl.col("marketing_status_id").cast(pl.Int64, strict=False)
         )
         if "marketing_status_id" in silver_df.collect_schema().names():
-            silver_df = silver_df.with_columns(pl.col("marketing_status_id").cast(pl.Int64, strict=False))
+            silver_df = silver_df.with_columns(
+                pl.col("marketing_status_id").cast(pl.Int64, strict=False)
+            )
 
             cols_lookup = ["marketing_status_id", "marketing_status_description"]
             df_lookup_sub = (
@@ -310,14 +339,22 @@ def prepare_gold_products(
                 .sort(cols_lookup)
                 .unique(subset=["marketing_status_id"], keep="first")
             )
-            silver_df = silver_df.join(df_lookup_sub, on="marketing_status_id", how="left")
+            silver_df = silver_df.join(
+                df_lookup_sub, on="marketing_status_id", how="left"
+            )
     else:
-        silver_df = silver_df.with_columns(pl.lit(None).alias("marketing_status_description"))
+        silver_df = silver_df.with_columns(
+            pl.lit(None).alias("marketing_status_description")
+        )
 
     # 3. Join TE
     if has_col(df_te, "te_code"):
         cols_te = ["appl_no", "product_no", "te_code"]
-        df_te_sub = df_te.select(cols_te).sort(cols_te).unique(subset=["appl_no", "product_no"], keep="first")
+        df_te_sub = (
+            df_te.select(cols_te)
+            .sort(cols_te)
+            .unique(subset=["appl_no", "product_no"], keep="first")
+        )
         silver_df = silver_df.join(df_te_sub, on=["appl_no", "product_no"], how="left")
     else:
         silver_df = silver_df.with_columns(pl.lit(None).alias("te_code"))
@@ -328,10 +365,15 @@ def prepare_gold_products(
         df_excl_agg = df_exclusivity.group_by(["appl_no", "product_no"]).agg(
             pl.col("exclusivity_date").max().alias("max_exclusivity_date")
         )
-        silver_df = silver_df.join(df_excl_agg, on=["appl_no", "product_no"], how="left")
+        silver_df = silver_df.join(
+            df_excl_agg, on=["appl_no", "product_no"], how="left"
+        )
         today = date.today()
         silver_df = silver_df.with_columns(
-            pl.when(pl.col("max_exclusivity_date") > today).then(True).otherwise(False).alias("is_protected")
+            pl.when(pl.col("max_exclusivity_date") > today)
+            .then(True)
+            .otherwise(False)
+            .alias("is_protected")
         )
     else:
         silver_df = silver_df.with_columns(pl.lit(False).alias("is_protected"))
@@ -360,17 +402,23 @@ def prepare_gold_products(
     else:
         search_components.append(pl.lit(""))
 
-    search_components.append(pl.col("active_ingredients_list").list.join(" ").fill_null(""))
+    search_components.append(
+        pl.col("active_ingredients_list").list.join(" ").fill_null("")
+    )
     search_components.append(pl.col("sponsor_name").fill_null(""))
     search_components.append(pl.col("te_code").fill_null(""))
 
     silver_df = silver_df.with_columns(
-        pl.concat_str(search_components, separator=" ").str.strip_chars().alias("search_vector")
+        pl.concat_str(search_components, separator=" ")
+        .str.strip_chars()
+        .alias("search_vector")
     )
     silver_df = silver_df.with_columns(pl.col("search_vector").str.to_uppercase())
 
     if "marketing_status_id" in final_cols:
-        silver_df = silver_df.with_columns(pl.col("marketing_status_id").cast(pl.Int64, strict=False))
+        silver_df = silver_df.with_columns(
+            pl.col("marketing_status_id").cast(pl.Int64, strict=False)
+        )
 
     return silver_df
 
@@ -390,12 +438,19 @@ def extract_orig_dates(submissions_lazy: pl.LazyFrame) -> Dict[str, str]:
     df = df.with_columns(pl.col("appl_no").cast(pl.String).str.pad_start(6, "0"))
 
     df = df.with_columns(
-        pl.col("submission_status_date").str.slice(0, 10).str.to_date(format="%Y-%m-%d", strict=False).alias("sort_date")
+        pl.col("submission_status_date")
+        .str.slice(0, 10)
+        .str.to_date(format="%Y-%m-%d", strict=False)
+        .alias("sort_date")
     )
-    
+
     df = df.sort("sort_date")
 
     df = df.unique(subset=["appl_no"], keep="first")
 
     rows = df.select(["appl_no", "submission_status_date"]).collect().to_dicts()
-    return {row["appl_no"]: row["submission_status_date"] for row in rows if row["submission_status_date"]}
+    return {
+        row["appl_no"]: row["submission_status_date"]
+        for row in rows
+        if row["submission_status_date"]
+    }

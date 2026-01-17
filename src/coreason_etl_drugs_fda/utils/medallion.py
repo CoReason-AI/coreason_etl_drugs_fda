@@ -9,7 +9,9 @@
 # Source Code: https://github.com/CoReason-AI/coreason_etl_drugs_fda
 
 from dlt.pipeline.pipeline import Pipeline
+
 from coreason_etl_drugs_fda.utils.logger import logger
+
 
 def organize_schemas(pipeline: Pipeline) -> None:
     """
@@ -18,7 +20,9 @@ def organize_schemas(pipeline: Pipeline) -> None:
     """
     # Only proceed if destination supports schemas (Postgres, Redshift, Snowflake, etc.)
     if pipeline.destination.destination_name != "postgres":
-        logger.info(f"Skipping schema organization for destination: {pipeline.destination.destination_name}")
+        logger.info(
+            f"Skipping schema organization for destination: {pipeline.destination.destination_name}"
+        )
         return
 
     # --- FIX: Use 'with' context manager to open the connection ---
@@ -36,11 +40,23 @@ def organize_schemas(pipeline: Pipeline) -> None:
             target_schema = None
 
             # Determine target schema based on table name patterns
-            if "_bronze_" in table_name or table_name.startswith("bronze_") or "fda_drugs_bronze" in table_name:
+            if (
+                "_bronze_" in table_name
+                or table_name.startswith("bronze_")
+                or "fda_drugs_bronze" in table_name
+            ):
                 target_schema = "bronze"
-            elif "_silver_" in table_name or table_name.startswith("silver_") or "fda_drugs_silver" in table_name:
+            elif (
+                "_silver_" in table_name
+                or table_name.startswith("silver_")
+                or "fda_drugs_silver" in table_name
+            ):
                 target_schema = "silver"
-            elif "_gold_" in table_name or table_name.startswith("gold_") or "fda_drugs_gold" in table_name:
+            elif (
+                "_gold_" in table_name
+                or table_name.startswith("gold_")
+                or "fda_drugs_gold" in table_name
+            ):
                 target_schema = "gold"
 
             if target_schema:
