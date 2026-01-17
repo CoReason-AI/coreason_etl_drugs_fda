@@ -28,7 +28,7 @@ def create_pipeline(destination: str = "postgres", dataset_name: str = "fda_data
     return pipeline
 
 
-@logger.catch  # type: ignore[misc]
+@logger.catch
 def run_pipeline() -> None:
     """
     Main entry point to run the pipeline.

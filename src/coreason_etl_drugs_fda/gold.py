@@ -15,7 +15,7 @@ from typing import List, Optional
 from pydantic import BaseModel, Field
 
 
-class ProductGold(BaseModel):  # type: ignore[misc]
+class ProductGold(BaseModel):
     """
     Gold layer schema for Drug Products (One Big Table).
     """

@@ -11,7 +11,7 @@
 import hashlib
 import uuid
 from datetime import date
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, TypeVar, Union
 
 import polars as pl
 from pydantic import BaseModel, Field
@@ -21,7 +21,7 @@ from pydantic import BaseModel, Field
 NAMESPACE_FDA = uuid.UUID("9a527060-639d-5a63-a612-9c1673322488")
 
 
-class ProductSilver(BaseModel):  # type: ignore[misc]
+class ProductSilver(BaseModel):
     """
     Silver layer schema for Drug Products.
     """
@@ -38,7 +38,10 @@ class ProductSilver(BaseModel):  # type: ignore[misc]
     hash_md5: str
 
 
-def generate_coreason_id(df: Union[pl.DataFrame, pl.LazyFrame]) -> Union[pl.DataFrame, pl.LazyFrame]:
+FrameT = TypeVar("FrameT", bound=Union[pl.DataFrame, pl.LazyFrame])
+
+
+def generate_coreason_id(df: FrameT) -> FrameT:
     """
     Generates coreason_id using UUIDv5(NAMESPACE_FDA, f"{ApplNo}|{ProductNo}").
     Expects appl_no and product_no to be already normalized (padded strings).
@@ -56,9 +59,9 @@ def generate_coreason_id(df: Union[pl.DataFrame, pl.LazyFrame]) -> Union[pl.Data
         return str(uuid.uuid5(NAMESPACE_FDA, name))
 
     # Generate source_id: ApplNo + ProductNo
-    df = df.with_columns((pl.col("appl_no") + pl.col("product_no")).alias("source_id"))
+    df = df.with_columns((pl.col("appl_no") + pl.col("product_no")).alias("source_id"))  # type: ignore[assignment]
 
-    df = df.with_columns(
+    df = df.with_columns(  # type: ignore[assignment]
         pl.struct(["appl_no", "product_no"])
         .map_elements(_create_uuid, return_dtype=pl.String)
         .cast(pl.String)  # Ensure it's string (String is safer for transport)
@@ -67,7 +70,7 @@ def generate_coreason_id(df: Union[pl.DataFrame, pl.LazyFrame]) -> Union[pl.Data
     return df
 
 
-def generate_row_hash(df: Union[pl.DataFrame, pl.LazyFrame]) -> Union[pl.DataFrame, pl.LazyFrame]:
+def generate_row_hash(df: FrameT) -> FrameT:
     """
     Generates an MD5 hash of the row content for change detection.
     This is a simplified implementation hashing the concatenation of all columns as string.
@@ -102,7 +105,7 @@ def generate_row_hash(df: Union[pl.DataFrame, pl.LazyFrame]) -> Union[pl.DataFra
         expr = expr.fill_null("")
         exprs.append(expr)
 
-    df = df.with_columns(
+    df = df.with_columns(  # type: ignore[assignment]
         pl.concat_str(exprs, separator="|")
         .map_elements(lambda x: hashlib.md5(x.encode()).hexdigest(), return_dtype=pl.String)
         .alias("hash_md5")
