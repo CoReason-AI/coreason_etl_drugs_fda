@@ -54,7 +54,6 @@ def _read_file_from_zip(zip_content: bytes, filename: str) -> List[Dict[str, Any
             df = _read_csv_bytes(f.read())
             # Explicit cast for mypy, as clean_dataframe returns Union[DataFrame, LazyFrame]
             df_clean = cast(pl.DataFrame, clean_dataframe(df))
-            # Explicit cast for the return value to satisfy strict mypy no-any-return
             return cast(List[Dict[str, Any]], df_clean.to_dicts())
 
 
@@ -99,9 +98,7 @@ def drugs_fda_source(
             else:
                 # If we get 200 OK but it's text (like the abuse page), fail.
                 snippet = response.content[:100].decode(errors="ignore")
-                raise ValueError(
-                    f"Downloaded content is not a ZIP. Abuse detection triggered? Content: {snippet}"
-                )
+                raise ValueError(f"Downloaded content is not a ZIP. Abuse detection triggered? Content: {snippet}")
         else:
             response.raise_for_status()
 
@@ -135,9 +132,7 @@ def drugs_fda_source(
             write_disposition="replace",
             schema_contract={"columns": "evolve"},
         )
-        def file_resource(
-            fname: str = filename, z_content: bytes = zip_bytes
-        ) -> Iterator[List[Dict[str, Any]]]:
+        def file_resource(fname: str = filename, z_content: bytes = zip_bytes) -> Iterator[List[Dict[str, Any]]]:
             # Changed 'yield from' to 'yield' because _read_file_from_zip returns a List
             # and the signature declares yielding List chunks.
             yield _read_file_from_zip(z_content, fname)
@@ -170,9 +165,7 @@ def drugs_fda_source(
             )
 
             if dates_df_eager.is_empty():
-                dates_df_eager = pl.DataFrame(
-                    schema={"appl_no": pl.String, "original_approval_date": pl.String}
-                )
+                dates_df_eager = pl.DataFrame(schema={"appl_no": pl.String, "original_approval_date": pl.String})
             else:
                 dates_df_eager = dates_df_eager.with_columns(pl.col("appl_no").cast(pl.String))
 
@@ -221,9 +214,7 @@ def drugs_fda_source(
             )
 
             if dates_df_eager.is_empty():
-                dates_df_eager = pl.DataFrame(
-                    schema={"appl_no": pl.String, "original_approval_date": pl.String}
-                )
+                dates_df_eager = pl.DataFrame(schema={"appl_no": pl.String, "original_approval_date": pl.String})
             else:
                 dates_df_eager = dates_df_eager.with_columns(pl.col("appl_no").cast(pl.String))
 
