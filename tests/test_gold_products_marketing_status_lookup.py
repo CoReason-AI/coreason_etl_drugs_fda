@@ -38,14 +38,14 @@ def test_gold_products_marketing_status_lookup() -> None:
     buffer.seek(0)
     mock_content = buffer.getvalue()
 
-    with patch("requests.get") as mock_get:
-        mock_response = MagicMock()
+    with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
+        mock_response = MagicMock(status_code=200)
         mock_response.content = mock_content
         mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
+        gold_prods = list(source.resources["fda_drugs_gold_products"])
         assert len(gold_prods) == 1
         row = gold_prods[0]
 

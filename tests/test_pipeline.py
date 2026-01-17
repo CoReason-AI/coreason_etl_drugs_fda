@@ -49,8 +49,8 @@ def test_pipeline_bronze_ingestion(mock_zip_content_integration: bytes) -> None:
     """
     Test that the pipeline extracts all required files (Products, Submissions, Exclusivity).
     """
-    with patch("requests.get") as mock_get:
-        mock_response = MagicMock()
+    with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
+        mock_response = MagicMock(status_code=200)
         mock_response.content = mock_zip_content_integration
         mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
@@ -59,13 +59,13 @@ def test_pipeline_bronze_ingestion(mock_zip_content_integration: bytes) -> None:
 
         # Check resources exist
         resources = source.resources
-        assert "FDA@DRUGS_bronze_fda__products" in resources
-        assert "FDA@DRUGS_bronze_fda__submissions" in resources
-        assert "FDA@DRUGS_bronze_fda__exclusivity" in resources
-        assert "FDA@DRUGS_silver_products" in resources
+        assert "fda_drugs_bronze_products" in resources
+        assert "fda_drugs_bronze_submissions" in resources
+        assert "fda_drugs_bronze_exclusivity" in resources
+        assert "fda_drugs_silver_products" in resources
 
         # Check content of Exclusivity
-        excl_data = list(resources["FDA@DRUGS_bronze_fda__exclusivity"])
+        excl_data = list(resources["fda_drugs_bronze_exclusivity"])
         assert len(excl_data) == 1
         assert excl_data[0]["exclusivity_code"] == "ODE"
 

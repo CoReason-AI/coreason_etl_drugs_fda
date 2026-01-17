@@ -47,14 +47,14 @@ def test_massive_fanout_search_vector_resilience() -> None:
 
     buffer.seek(0)
 
-    with patch("requests.get") as mock_get:
-        mock_response = MagicMock()
+    with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
+        mock_response = MagicMock(status_code=200)
         mock_response.content = buffer.getvalue()
         mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
+        gold_prods = list(source.resources["fda_drugs_gold_products"])
 
         assert len(gold_prods) == 1
         row = gold_prods[0]
@@ -89,15 +89,15 @@ def test_massive_active_ingredients_list() -> None:
 
     buffer.seek(0)
 
-    with patch("requests.get") as mock_get:
-        mock_response = MagicMock()
+    with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
+        mock_response = MagicMock(status_code=200)
         mock_response.content = buffer.getvalue()
         mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        silver_prods = list(source.resources["FDA@DRUGS_silver_products"])
-        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
+        silver_prods = list(source.resources["fda_drugs_silver_products"])
+        gold_prods = list(source.resources["fda_drugs_gold_products"])
 
         assert len(silver_prods) == 1
         row = silver_prods[0]

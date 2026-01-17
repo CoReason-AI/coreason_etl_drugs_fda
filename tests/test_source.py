@@ -55,7 +55,7 @@ def test_drugs_fda_source_extraction(mock_zip_content: bytes) -> None:
     Also verifies the 'silver_products' resource.
     """
     with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
-        mock_response = MagicMock()
+        mock_response = MagicMock(status_code=200)
         mock_response.content = mock_zip_content
         mock_response.status_code = 200
         mock_response.raise_for_status.return_value = None
@@ -115,7 +115,7 @@ def test_silver_products_legacy_date(mock_zip_content: bytes) -> None:
     mock_content = buffer.getvalue()
 
     with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
-        mock_response = MagicMock()
+        mock_response = MagicMock(status_code=200)
         mock_response.content = mock_content
         mock_response.status_code = 200
         mock_response.raise_for_status.return_value = None
@@ -168,7 +168,7 @@ def test_silver_products_empty_dates() -> None:
     mock_content = buffer.getvalue()
 
     with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
-        mock_response = MagicMock()
+        mock_response = MagicMock(status_code=200)
         mock_response.content = mock_content
         mock_response.status_code = 200
         mock_response.raise_for_status.return_value = None
@@ -220,7 +220,7 @@ def test_silver_products_validation_error() -> None:
     mock_content = buffer.getvalue()
 
     with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
-        mock_response = MagicMock()
+        mock_response = MagicMock(status_code=200)
         mock_response.content = mock_content
         mock_response.status_code = 200
         mock_response.raise_for_status.return_value = None
@@ -276,7 +276,7 @@ def test_gold_products_logic() -> None:
     mock_content = buffer.getvalue()
 
     with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
-        mock_response = MagicMock()
+        mock_response = MagicMock(status_code=200)
         mock_response.content = mock_content
         mock_response.status_code = 200
         mock_response.raise_for_status.return_value = None
@@ -326,7 +326,7 @@ def test_gold_products_missing_aux_files() -> None:
     mock_content = buffer.getvalue()
 
     with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
-        mock_response = MagicMock()
+        mock_response = MagicMock(status_code=200)
         mock_response.content = mock_content
         mock_response.status_code = 200
         mock_response.raise_for_status.return_value = None
@@ -363,7 +363,7 @@ def test_gold_products_missing_appl_type_column() -> None:
     mock_content = buffer.getvalue()
 
     with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
-        mock_response = MagicMock()
+        mock_response = MagicMock(status_code=200)
         mock_response.content = mock_content
         mock_response.status_code = 200
         mock_response.raise_for_status.return_value = None
@@ -389,7 +389,7 @@ def test_source_skips_silver_if_missing_files() -> None:
     mock_content = buffer.getvalue()
 
     with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
-        mock_response = MagicMock()
+        mock_response = MagicMock(status_code=200)
         mock_response.content = mock_content
         mock_response.status_code = 200
         mock_response.raise_for_status.return_value = None
@@ -409,7 +409,7 @@ def test_source_skips_silver_if_missing_files() -> None:
     buffer.seek(0)
 
     with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
-        mock_response = MagicMock()
+        mock_response = MagicMock(status_code=200)
         mock_response.content = buffer.getvalue()
         mock_response.status_code = 200
         mock_response.raise_for_status.return_value = None
@@ -431,7 +431,7 @@ def test_gold_products_empty_source_file() -> None:
     buffer.seek(0)
 
     with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
-        mock_response = MagicMock()
+        mock_response = MagicMock(status_code=200)
         mock_response.content = buffer.getvalue()
         mock_response.status_code = 200
         mock_response.raise_for_status.return_value = None

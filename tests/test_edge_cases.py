@@ -36,16 +36,16 @@ def test_malformed_tsv_ragged_lines() -> None:
         z.writestr("Products.txt", content)
     buffer.seek(0)
 
-    with patch("requests.get") as mock_get:
-        mock_response = MagicMock()
+    with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
+        mock_response = MagicMock(status_code=200)
         mock_response.content = buffer.getvalue()
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
 
         # dlt source yields resources.
-        assert "FDA@DRUGS_bronze_fda__products" in source.resources
-        resource = source.resources["FDA@DRUGS_bronze_fda__products"]
+        assert "fda_drugs_bronze_products" in source.resources
+        resource = source.resources["fda_drugs_bronze_products"]
 
         data = list(resource)
         # Check that we got rows.
@@ -243,14 +243,14 @@ def test_submission_join_duplicate_orig() -> None:
         z.writestr("Submissions.txt", submissions)
     buffer.seek(0)
 
-    with patch("requests.get") as mock_get:
-        mock_response = MagicMock()
+    with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
+        mock_response = MagicMock(status_code=200)
         mock_response.content = buffer.getvalue()
         mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        silver_prod = list(source.resources["FDA@DRUGS_silver_products"])
+        silver_prod = list(source.resources["fda_drugs_silver_products"])
         row = silver_prod[0]
 
         # Expect 2022-01-01 (Earliest) because code sorts by date
@@ -274,13 +274,13 @@ def test_submission_join_mismatched_padding() -> None:
         z.writestr("Submissions.txt", submissions)
     buffer.seek(0)
 
-    with patch("requests.get") as mock_get:
-        mock_response = MagicMock()
+    with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
+        mock_response = MagicMock(status_code=200)
         mock_response.content = buffer.getvalue()
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        silver_prod = list(source.resources["FDA@DRUGS_silver_products"])
+        silver_prod = list(source.resources["fda_drugs_silver_products"])
         row = silver_prod[0]
 
         assert row["appl_no"] == "000010"
@@ -307,13 +307,13 @@ def test_encoding_cp1252() -> None:
 
     buffer.seek(0)
 
-    with patch("requests.get") as mock_get:
-        mock_response = MagicMock()
+    with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
+        mock_response = MagicMock(status_code=200)
         mock_response.content = buffer.getvalue()
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        silver_prod = list(source.resources["FDA@DRUGS_silver_products"])
+        silver_prod = list(source.resources["fda_drugs_silver_products"])
         row = silver_prod[0]
 
         # Verify decoding
@@ -360,13 +360,13 @@ def test_gold_exclusivity_mixed_dates() -> None:
 
     buffer.seek(0)
 
-    with patch("requests.get") as mock_get:
-        mock_response = MagicMock()
+    with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
+        mock_response = MagicMock(status_code=200)
         mock_response.content = buffer.getvalue()
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
+        gold_prods = list(source.resources["fda_drugs_gold_products"])
         assert len(gold_prods) == 1
         row = gold_prods[0]
 
@@ -394,13 +394,13 @@ def test_gold_auxiliary_duplication() -> None:
 
     buffer.seek(0)
 
-    with patch("requests.get") as mock_get:
-        mock_response = MagicMock()
+    with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
+        mock_response = MagicMock(status_code=200)
         mock_response.content = buffer.getvalue()
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
+        gold_prods = list(source.resources["fda_drugs_gold_products"])
 
         # Should still be 1 row, not 2
         assert len(gold_prods) == 1
