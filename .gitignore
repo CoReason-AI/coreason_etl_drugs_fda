@@ -1,35 +1,20 @@
-# Secrets
-.dlt/secrets.toml
+# Secrets & Environment
+.dlt/
+*.toml
+secrets.toml
 .env
 .venv
 venv/
 
-# Python Cache & Build Artifacts
+# Python Cache & Artifacts
 __pycache__/
 *.py[cod]
 *.class
 *.so
-.distribution
 build/
-develop-eggs/
 dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
 *.egg-info/
-.installed.cfg
-*.egg
 
 # Large Files
 *.zip
 drugs_fda_archive.zip
-
-# IDE Settings
-.idea/
-.vscode/
