@@ -54,7 +54,8 @@ def _read_file_from_zip(zip_content: bytes, filename: str) -> List[Dict[str, Any
             df = _read_csv_bytes(f.read())
             # Explicit cast for mypy, as clean_dataframe returns Union[DataFrame, LazyFrame]
             df_clean = cast(pl.DataFrame, clean_dataframe(df))
-            return cast(List[Dict[str, Any]], df_clean.to_dicts())
+            # Return list of dicts, ignoring strict Any return type check
+            return df_clean.to_dicts()  # type: ignore[no-any-return]
 
 
 def _get_lazy_df_from_zip(zip_content: bytes, filename: str) -> pl.LazyFrame:
@@ -133,8 +134,7 @@ def drugs_fda_source(
             schema_contract={"columns": "evolve"},
         )
         def file_resource(fname: str = filename, z_content: bytes = zip_bytes) -> Iterator[List[Dict[str, Any]]]:
-            # Changed 'yield from' to 'yield' because _read_file_from_zip returns a List
-            # and the signature declares yielding List chunks.
+            # Yield result directly to match Iterator return type
             yield _read_file_from_zip(z_content, fname)
 
         yield file_resource()
@@ -182,8 +182,6 @@ def drugs_fda_source(
             for row in df.to_dicts():
                 if not row.get("appl_no") or not row.get("product_no"):
                     continue
-                # Cast the dict to Any to satisfy the iterator return type check broadly if needed,
-                # though ProductSilver is compatible with dict unpacking in dlt.
                 yield cast(ProductSilver, row)
             logger.info("Silver Products layer generation complete.")
 
