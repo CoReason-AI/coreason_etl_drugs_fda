@@ -85,6 +85,7 @@ def test_source_http_error() -> None:
         with pytest.raises(requests.HTTPError):
             drugs_fda_source()
 
+
 def test_source_corrupted_zip() -> None:
     """
     Test a file that starts with PK but is corrupted.
