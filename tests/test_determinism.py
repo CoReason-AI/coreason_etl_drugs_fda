@@ -42,15 +42,15 @@ def test_lookup_determinism() -> None:
 
         buffer.seek(0)
 
-        with patch("requests.get") as mock_get:
-            mock_response = MagicMock()
+        with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
+            mock_response = MagicMock(status_code=200)
             mock_response.content = buffer.getvalue()
             mock_response.raise_for_status.return_value = None
             mock_get.return_value = mock_response
 
             source = drugs_fda_source()
             # We specifically want Gold product
-            gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
+            gold_prods = list(source.resources["fda_drugs_gold_products"])
             return str(gold_prods[0]["marketing_status_description"])
 
     result_a = run_with_lookup_content(content_a)
@@ -92,14 +92,14 @@ def test_marketing_status_determinism() -> None:
 
         buffer.seek(0)
 
-        with patch("requests.get") as mock_get:
-            mock_response = MagicMock()
+        with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
+            mock_response = MagicMock(status_code=200)
             mock_response.content = buffer.getvalue()
             mock_response.raise_for_status.return_value = None
             mock_get.return_value = mock_response
 
             source = drugs_fda_source()
-            gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
+            gold_prods = list(source.resources["fda_drugs_gold_products"])
             val = gold_prods[0]["marketing_status_id"]
             assert val is not None
             return int(val)

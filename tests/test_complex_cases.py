@@ -40,14 +40,14 @@ def test_marketing_status_lookup_fanout() -> None:
 
     buffer.seek(0)
 
-    with patch("requests.get") as mock_get:
-        mock_response = MagicMock()
+    with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
+        mock_response = MagicMock(status_code=200)
         mock_response.content = buffer.getvalue()
         mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
+        gold_prods = list(source.resources["fda_drugs_gold_products"])
 
         # MUST still be exactly 1 row
         assert len(gold_prods) == 1
@@ -79,14 +79,14 @@ def test_marketing_status_lookup_dirty_ids() -> None:
 
     buffer.seek(0)
 
-    with patch("requests.get") as mock_get:
-        mock_response = MagicMock()
+    with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
+        mock_response = MagicMock(status_code=200)
         mock_response.content = buffer.getvalue()
         mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
+        gold_prods = list(source.resources["fda_drugs_gold_products"])
 
         assert len(gold_prods) == 1
         row = gold_prods[0]
@@ -132,14 +132,14 @@ def test_complex_integration() -> None:
 
     buffer.seek(0)
 
-    with patch("requests.get") as mock_get:
-        mock_response = MagicMock()
+    with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
+        mock_response = MagicMock(status_code=200)
         mock_response.content = buffer.getvalue()
         mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
+        gold_prods = list(source.resources["fda_drugs_gold_products"])
 
         assert len(gold_prods) == 1
         row = gold_prods[0]
@@ -194,14 +194,14 @@ def test_submission_date_sorting_legacy_vs_iso() -> None:
 
     buffer.seek(0)
 
-    with patch("requests.get") as mock_get:
-        mock_response = MagicMock()
+    with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
+        mock_response = MagicMock(status_code=200)
         mock_response.content = buffer.getvalue()
         mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
+        gold_prods = list(source.resources["fda_drugs_gold_products"])
 
         assert len(gold_prods) == 1
         row = gold_prods[0]
@@ -227,14 +227,14 @@ def test_te_code_fanout_prevention() -> None:
 
     buffer.seek(0)
 
-    with patch("requests.get") as mock_get:
-        mock_response = MagicMock()
+    with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
+        mock_response = MagicMock(status_code=200)
         mock_response.content = buffer.getvalue()
         mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
-        gold_prods = list(source.resources["FDA@DRUGS_gold_drug_product"])
+        gold_prods = list(source.resources["fda_drugs_gold_products"])
 
         # Should NOT fan out to 2 rows
         assert len(gold_prods) == 1

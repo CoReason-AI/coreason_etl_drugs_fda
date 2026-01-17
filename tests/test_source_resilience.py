@@ -10,7 +10,6 @@
 
 import io
 from unittest.mock import MagicMock, patch
-from zipfile import BadZipFile
 
 import pytest
 
@@ -25,8 +24,8 @@ def test_source_not_a_zip() -> None:
     """
     mock_content = b"This is not a zip file"
 
-    with patch("requests.get") as mock_get:
-        mock_response = MagicMock()
+    with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
+        mock_response = MagicMock(status_code=200)
         mock_response.content = mock_content
         mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
@@ -42,14 +41,8 @@ def test_source_not_a_zip() -> None:
 
         # Let's catch Exception and check type name to be safe against dlt wrapping or import mismatches.
 
-        try:
+        with pytest.raises(ValueError, match="Downloaded content is not a ZIP"):
             drugs_fda_source()
-        except Exception as e:
-            # Check if it is BadZipFile
-            assert "BadZipFile" in type(e).__name__ or isinstance(e, BadZipFile)
-            return
-
-        pytest.fail("Did not raise BadZipFile")
 
 
 def test_source_empty_zip() -> None:
@@ -63,8 +56,8 @@ def test_source_empty_zip() -> None:
         pass  # Empty
     buffer.seek(0)
 
-    with patch("requests.get") as mock_get:
-        mock_response = MagicMock()
+    with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
+        mock_response = MagicMock(status_code=200)
         mock_response.content = buffer.getvalue()
         mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
@@ -84,10 +77,29 @@ def test_source_http_error() -> None:
     """
     import requests
 
-    with patch("requests.get") as mock_get:
-        mock_response = MagicMock()
+    with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
+        mock_response = MagicMock(status_code=404)
         mock_response.raise_for_status.side_effect = requests.HTTPError("404 Not Found")
         mock_get.return_value = mock_response
 
         with pytest.raises(requests.HTTPError):
+            drugs_fda_source()
+
+
+def test_source_corrupted_zip() -> None:
+    """
+    Test a file that starts with PK but is corrupted.
+    Should raise BadZipFile (and log error).
+    """
+    import zipfile
+
+    mock_content = b"PK\x03\x04" + b"trash" * 10
+
+    with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
+        mock_response = MagicMock(status_code=200)
+        mock_response.content = mock_content
+        mock_response.raise_for_status.return_value = None
+        mock_get.return_value = mock_response
+
+        with pytest.raises(zipfile.BadZipFile):
             drugs_fda_source()

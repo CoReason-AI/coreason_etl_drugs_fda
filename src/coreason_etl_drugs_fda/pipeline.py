@@ -15,7 +15,7 @@ from coreason_etl_drugs_fda.utils.logger import logger
 from coreason_etl_drugs_fda.utils.medallion import organize_schemas
 
 
-def create_pipeline(destination: str = "duckdb", dataset_name: str = "fda_data") -> dlt.Pipeline:
+def create_pipeline(destination: str = "postgres", dataset_name: str = "fda_data") -> dlt.Pipeline:
     """
     Creates and configures the dlt pipeline.
     """
