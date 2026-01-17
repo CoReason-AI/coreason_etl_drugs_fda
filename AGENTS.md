@@ -49,7 +49,7 @@ This project uses **Ruff** for Python linting/formatting, **Mypy** for typing, a
   * Run checks with: poetry run mypy .
   * Avoid Any wherever possible.
 * **Logging:** Use loguru instead of the standard logging module.
-  * *Good:* from loguru import logger -> logger.info("...")
+  * *Good:* from coreason_etl_drugs_fda.utils.logger import logger -> logger.info("...")
 * **Licensing:** Every .py file must start with the standard license header.
 
 ### **Legal & Intellectual Property**
@@ -95,7 +95,21 @@ Adhere to 12-Factor App principles. Use these standard variable names:
   * APP_ENV: development, testing, production.
   * DEBUG: true or false.
   * SECRET_KEY: For cryptographic signing/sessions.
-* **Logging:**
+* **Logging & Observability:**
+  * **Standard:** `loguru` is the required standard.
+  * **Configuration:** Centralized in `src/coreason_etl_drugs_fda/utils/logger.py`.
+  * **Output:** Console (Text) and `logs/app.log` (JSON).
+  * **Usage Example:**
+    ```python
+    from coreason_etl_drugs_fda.utils.logger import logger
+
+    # Inside an Agent
+    logger.info("Agent started task")
+    try:
+        ...
+    except Exception:
+        logger.exception("Agent failed")
+    ```
   * LOG_LEVEL: DEBUG, INFO, WARNING, ERROR (Configure loguru with this).
 * **Infrastructure (if applicable):**
   * DOCKER_HOST: If interacting with the Docker engine.

@@ -36,16 +36,16 @@ def test_malformed_tsv_ragged_lines() -> None:
         z.writestr("Products.txt", content)
     buffer.seek(0)
 
-    with patch("requests.get") as mock_get:
-        mock_response = MagicMock()
+    with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
+        mock_response = MagicMock(status_code=200)
         mock_response.content = buffer.getvalue()
         mock_get.return_value = mock_response
 
         source = drugs_fda_source()
 
         # dlt source yields resources.
-        assert "raw_fda__products" in source.resources
-        resource = source.resources["raw_fda__products"]
+        assert "fda_drugs_bronze_products" in source.resources
+        resource = source.resources["fda_drugs_bronze_products"]
 
         data = list(resource)
         # Check that we got rows.
@@ -91,7 +91,7 @@ def test_transform_null_handling() -> None:
 
     # 1. normalize_ids
     # Should handle None. Padded strings of null usually become null or "00null"?
-    # pl.col().cast(pl.Utf8) converts None to null. str.pad_start on null results in null.
+    # pl.col().cast(pl.String) converts None to null. str.pad_start on null results in null.
     res_ids = normalize_ids(df)
     assert res_ids["appl_no"][0] is None
     assert res_ids["appl_no"][1] == "000123"
@@ -102,7 +102,8 @@ def test_transform_null_handling() -> None:
     # str.to_uppercase on null is null.
     res_ing = clean_ingredients(df)
     ing_list = res_ing["active_ingredients_list"].to_list()
-    assert ing_list[0] is None
+    # Expectation updated: Null values should become empty lists
+    assert ing_list[0] == []
     assert ing_list[1] == ["A", "B"]
 
     # 3. generate_coreason_id handling of Nulls
@@ -139,11 +140,12 @@ def test_id_overflow() -> None:
     with pytest.raises(ValidationError):
         ProductSilver(
             coreason_id=uuid.uuid4(),
+            source_id="1234567001",
             appl_no=res["appl_no"][0],  # Invalid
             product_no="001",
             form="F",
             strength="S",
-            active_ingredient=[],
+            active_ingredients_list=[],
             original_approval_date=None,
             hash_md5="hash",
         )
@@ -194,11 +196,12 @@ def test_pydantic_validation_edge_cases() -> None:
     """
     base_data = {
         "coreason_id": uuid.uuid4(),
+        "source_id": "000123001",
         "appl_no": "000123",
         "product_no": "001",
         "form": "Form",
         "strength": "Str",
-        "active_ingredient": ["Ing"],
+        "active_ingredients_list": ["Ing"],
         "original_approval_date": None,
         "hash_md5": "hash",
     }
@@ -221,3 +224,201 @@ def test_pydantic_validation_edge_cases() -> None:
     data["appl_no"] = ""
     with pytest.raises(ValidationError):
         ProductSilver(**data)
+
+
+def test_submission_join_duplicate_orig() -> None:
+    """
+    Test handling of multiple 'ORIG' submissions.
+    We should use the earliest date (min date).
+    """
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as z:
+        # ApplNo 000009 has two ORIG submissions
+        products = "ApplNo\tProductNo\tActiveIngredient\tForm\tStrength\n000009\t001\tIng\tF\tS"
+        z.writestr("Products.txt", products)
+
+        # 1. Date 2023-01-01
+        # 2. Date 2022-01-01 (Earlier)
+        submissions = "ApplNo\tSubmissionType\tSubmissionStatusDate\n000009\tORIG\t2023-01-01\n000009\tORIG\t2022-01-01"
+        z.writestr("Submissions.txt", submissions)
+    buffer.seek(0)
+
+    with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
+        mock_response = MagicMock(status_code=200)
+        mock_response.content = buffer.getvalue()
+        mock_response.raise_for_status.return_value = None
+        mock_get.return_value = mock_response
+
+        source = drugs_fda_source()
+        silver_prod = list(source.resources["fda_drugs_silver_products"])
+        row = silver_prod[0]
+
+        # Expect 2022-01-01 (Earliest) because code sorts by date
+        assert row["original_approval_date"] == datetime.date(2022, 1, 1)
+
+
+def test_submission_join_mismatched_padding() -> None:
+    """
+    Test that join works even if ApplNo has different padding/length in source files,
+    because source.py normalizes them before join.
+    """
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as z:
+        # Products has "10" (will become "000010")
+        products = "ApplNo\tProductNo\tActiveIngredient\tForm\tStrength\n10\t001\tIng\tF\tS"
+        z.writestr("Products.txt", products)
+
+        # Submissions has "000010" (already padded)
+        # OR "010" (partially padded)
+        submissions = "ApplNo\tSubmissionType\tSubmissionStatusDate\n010\tORIG\t2023-05-05"
+        z.writestr("Submissions.txt", submissions)
+    buffer.seek(0)
+
+    with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
+        mock_response = MagicMock(status_code=200)
+        mock_response.content = buffer.getvalue()
+        mock_get.return_value = mock_response
+
+        source = drugs_fda_source()
+        silver_prod = list(source.resources["fda_drugs_silver_products"])
+        row = silver_prod[0]
+
+        assert row["appl_no"] == "000010"
+        assert row["original_approval_date"] == datetime.date(2023, 5, 5)
+
+
+def test_encoding_cp1252() -> None:
+    """
+    Test reading files with CP1252 specific characters (e.g. curly quotes, accents).
+    \x93 is left curly quote in CP1252 (U+201C “).
+    \xe9 is 'é' in CP1252.
+    """
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as z:
+        # Construct bytes directly to avoid python encoding confusion
+        # Header
+        header = b"ApplNo\tProductNo\tDrugName\tActiveIngredient\tForm\tStrength\n"
+        # Row: 000011 \t 001 \t Test [0x93] Name [0x94] \t Ingr [0xE9] dient \t F \t S
+        row = b"000011\t001\tTest\x93Name\x94\tIngr\xe9dient\tF\tS"
+        z.writestr("Products.txt", header + row)
+
+        # Submissions (normal)
+        z.writestr("Submissions.txt", "ApplNo\tSubmissionType\tSubmissionStatusDate\n000011\tORIG\t2023-01-01")
+
+    buffer.seek(0)
+
+    with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
+        mock_response = MagicMock(status_code=200)
+        mock_response.content = buffer.getvalue()
+        mock_get.return_value = mock_response
+
+        source = drugs_fda_source()
+        silver_prod = list(source.resources["fda_drugs_silver_products"])
+        row = silver_prod[0]
+
+        # Verify decoding
+        # 0x93 -> “ (U+201C)
+        # 0x94 -> ” (U+201D)
+        # 0xE9 -> é (U+00E9)
+        # DrugName is likely snake_cased or just present in dict?
+        # Note: _to_snake_case is for keys. Values are cleaned.
+        # But we don't have DrugName in Silver schema explicitly tested before?
+        # Silver resource yields whatever cols are in Products + enriched.
+        # But Pydantic model DOES NOT have DrugName.
+        # So DrugName will be ignored/dropped by ProductSilver unless we added it?
+        # ProductSilver in silver.py:
+        # coreason_id, appl_no, product_no, form, strength, active_ingredients_list, original_approval_date,
+        # is_historic_record, hash_md5.
+        # It does NOT have DrugName.
+        # So we can't assert row['drug_name'].
+        # We can only assert active_ingredients_list decoding.
+
+        # active_ingredients_list is upper-cased in transform.py
+        # "Ingr\xe9dient" -> "Ingrédient" -> "INGRÉDIENT"
+        assert row["active_ingredients_list"][0] == "INGRÉDIENT"
+
+
+def test_gold_exclusivity_mixed_dates() -> None:
+    """
+    Test Gold layer protection status with mixed exclusivity dates.
+    Product 001 has two exclusivity records:
+    1. Past date (Expired)
+    2. Future date (Active)
+    Result should be is_protected=True (Max date > Today).
+    """
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as z:
+        products = "ApplNo\tProductNo\tForm\tStrength\tActiveIngredient\n000001\t001\tF\tS\tIng"
+        z.writestr("Products.txt", products)
+        z.writestr("Submissions.txt", "ApplNo\tSubmissionType\tSubmissionStatusDate\n000001\tORIG\t2020-01-01")
+
+        # Two exclusivity records for same product
+        # 2000-01-01 (Past)
+        # 3000-01-01 (Future)
+        excl = "ApplNo\tProductNo\tExclusivityDate\n000001\t001\t2000-01-01\n000001\t001\t3000-01-01"
+        z.writestr("Exclusivity.txt", excl)
+
+    buffer.seek(0)
+
+    with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
+        mock_response = MagicMock(status_code=200)
+        mock_response.content = buffer.getvalue()
+        mock_get.return_value = mock_response
+
+        source = drugs_fda_source()
+        gold_prods = list(source.resources["fda_drugs_gold_products"])
+        assert len(gold_prods) == 1
+        row = gold_prods[0]
+
+        # Should be protected because max(3000, 2000) > today
+        assert row["is_protected"] is True
+
+
+def test_gold_auxiliary_duplication() -> None:
+    """
+    Test that duplicate records in auxiliary files (e.g., Applications) do not cause row explosion.
+    Applications.txt has duplicate rows for the same ApplNo.
+    """
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as z:
+        products = "ApplNo\tProductNo\tForm\tStrength\tActiveIngredient\n000001\t001\tF\tS\tIng"
+        z.writestr("Products.txt", products)
+        z.writestr("Submissions.txt", "ApplNo\tSubmissionType\tSubmissionStatusDate\n000001\tORIG\t2020-01-01")
+
+        # Duplicate Applications for 000001
+        # Row 1: Sponsor A
+        # Row 2: Sponsor A (Duplicate)
+        # Even if they differ, the logic uses unique(subset=['appl_no']), so it picks one.
+        apps = "ApplNo\tSponsorName\tApplType\n000001\tSponsorA\tN\n000001\tSponsorA\tN"
+        z.writestr("Applications.txt", apps)
+
+    buffer.seek(0)
+
+    with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
+        mock_response = MagicMock(status_code=200)
+        mock_response.content = buffer.getvalue()
+        mock_get.return_value = mock_response
+
+        source = drugs_fda_source()
+        gold_prods = list(source.resources["fda_drugs_gold_products"])
+
+        # Should still be 1 row, not 2
+        assert len(gold_prods) == 1
+        assert gold_prods[0]["sponsor_name"] == "SponsorA"
+
+
+def test_ingredients_complex_formatting() -> None:
+    """
+    Test ingredient cleaning with extra whitespace and separators.
+    Input: "  Ingredient A  ; Ingredient B ; "
+    Expected: ["INGREDIENT A", "INGREDIENT B", ""] (Empty string if trailing semi-colon)
+    """
+    df = pl.DataFrame({"active_ingredient": ["  Ingredient A  ; Ingredient B ; "]})
+    res = clean_ingredients(df)
+    ingredients = res["active_ingredients_list"][0].to_list()
+
+    assert "INGREDIENT A" in ingredients
+    assert "INGREDIENT B" in ingredients
+    # New logic filters out empty strings.
+    assert "" not in ingredients
+    assert len(ingredients) == 2

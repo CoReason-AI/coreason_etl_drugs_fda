@@ -11,7 +11,7 @@
 import hashlib
 import uuid
 from datetime import date
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TypeVar, Union
 
 import polars as pl
 from pydantic import BaseModel, Field
@@ -27,16 +27,21 @@ class ProductSilver(BaseModel):  # type: ignore[misc]
     """
 
     coreason_id: uuid.UUID
+    source_id: str = Field(..., pattern=r"^\d{9}$")
     appl_no: str = Field(..., pattern=r"^\d{6}$")
     product_no: str = Field(..., pattern=r"^\d{3}$")
     form: str
     strength: str
-    active_ingredient: List[str]
+    active_ingredients_list: List[str]
     original_approval_date: Optional[date]
+    is_historic_record: bool = False
     hash_md5: str
 
 
-def generate_coreason_id(df: pl.DataFrame) -> pl.DataFrame:
+FrameT = TypeVar("FrameT", bound=Union[pl.DataFrame, pl.LazyFrame])
+
+
+def generate_coreason_id(df: FrameT) -> FrameT:
     """
     Generates coreason_id using UUIDv5(NAMESPACE_FDA, f"{ApplNo}|{ProductNo}").
     Expects appl_no and product_no to be already normalized (padded strings).
@@ -53,37 +58,56 @@ def generate_coreason_id(df: pl.DataFrame) -> pl.DataFrame:
         name = f"{appl}|{prod}"
         return str(uuid.uuid5(NAMESPACE_FDA, name))
 
+    # Generate source_id: ApplNo + ProductNo
+    df = df.with_columns((pl.col("appl_no") + pl.col("product_no")).alias("source_id"))
+
     df = df.with_columns(
         pl.struct(["appl_no", "product_no"])
-        .map_elements(_create_uuid, return_dtype=pl.Utf8)
-        .cast(pl.Utf8)  # Ensure it's string (Utf8 is safer for transport)
+        .map_elements(_create_uuid, return_dtype=pl.String)
+        .cast(pl.String)  # Ensure it's string (String is safer for transport)
         .alias("coreason_id")
     )
     return df
 
 
-def generate_row_hash(df: pl.DataFrame) -> pl.DataFrame:
+def generate_row_hash(df: FrameT) -> FrameT:
     """
     Generates an MD5 hash of the row content for change detection.
     This is a simplified implementation hashing the concatenation of all columns as string.
+    Ensures column order stability by sorting column names.
     """
     # Concatenate all column values as string and hash
-    # We must cast all columns to Utf8 first, especially lists.
+    # We must cast all columns to String first, especially lists.
 
     exprs = []
-    for col_name in df.columns:
-        dtype = df.schema[col_name]
+
+    # Use collect_schema if lazy, otherwise schema
+    if isinstance(df, pl.LazyFrame):
+        schema = df.collect_schema()
+        cols = schema.names()
+    else:
+        schema = df.schema
+        cols = df.columns
+
+    # Sort columns to ensure consistent hashing regardless of order
+    cols.sort()
+
+    for col_name in cols:
+        dtype = schema[col_name]
         if isinstance(dtype, pl.List):
             # Convert list to string representation: join elements with ;
             # Ensure elements are strings before joining
-            expr = pl.col(col_name).list.eval(pl.element().cast(pl.Utf8)).list.join(";")
+            expr = pl.col(col_name).list.eval(pl.element().cast(pl.String)).list.join(";")
         else:
-            expr = pl.col(col_name).cast(pl.Utf8)
+            expr = pl.col(col_name).cast(pl.String)
+
+        # Fill nulls with empty string to ensure concatenation doesn't result in null
+        expr = expr.fill_null("")
         exprs.append(expr)
 
     df = df.with_columns(
         pl.concat_str(exprs, separator="|")
-        .map_elements(lambda x: hashlib.md5(x.encode()).hexdigest(), return_dtype=pl.Utf8)
+        .map_elements(lambda x: hashlib.md5(x.encode()).hexdigest(), return_dtype=pl.String)
         .alias("hash_md5")
     )
     return df

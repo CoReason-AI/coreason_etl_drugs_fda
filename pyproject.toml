@@ -13,6 +13,7 @@ dlt = "^1.20.0"
 polars = "^1.36.1"
 pydantic = "^2.12.5"
 loguru = "^0.7.3"
+curl-cffi = "^0.14.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.2"
@@ -55,6 +56,9 @@ target-version = "py312"
 [tool.ruff.lint]
 select = ["E", "F", "B", "I"]
 ignore = []
+
+[tool.ruff.lint.isort]
+known-first-party = ["coreason_etl_drugs_fda"]
 
 [tool.mypy]
 python_version = "3.12"

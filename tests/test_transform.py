@@ -12,7 +12,7 @@ from datetime import date
 
 import polars as pl
 
-from coreason_etl_drugs_fda.transform import clean_ingredients, fix_dates, normalize_ids
+from coreason_etl_drugs_fda.transform import clean_form, clean_ingredients, fix_dates, normalize_ids
 
 
 def test_normalize_ids() -> None:
@@ -31,6 +31,25 @@ def test_normalize_ids() -> None:
     assert result_str["appl_no"][1] == "001234"
     assert result_str["product_no"][0] == "001"
     assert result_str["product_no"][1] == "002"
+
+
+def test_normalize_ids_empty_strings() -> None:
+    """Test that empty strings or whitespace become nulls, not '000000'."""
+    df = pl.DataFrame({"appl_no": ["", "   ", None, "123"], "product_no": ["", " ", None, "1"]})
+
+    result = normalize_ids(df)
+
+    # Check appl_no
+    assert result["appl_no"][0] is None
+    assert result["appl_no"][1] is None
+    assert result["appl_no"][2] is None
+    assert result["appl_no"][3] == "000123"
+
+    # Check product_no
+    assert result["product_no"][0] is None
+    assert result["product_no"][1] is None
+    assert result["product_no"][2] is None
+    assert result["product_no"][3] == "001"
 
 
 def test_fix_dates() -> None:
@@ -67,6 +86,7 @@ def test_clean_ingredients() -> None:
 
     # Check output column exists
     assert "active_ingredients_list" in result.columns
+    assert "active_ingredient" not in result.columns
 
     # Check splitting and cleaning
     row1 = result["active_ingredients_list"][0]
@@ -81,3 +101,57 @@ def test_clean_ingredients() -> None:
     row3 = result["active_ingredients_list"][2]
     assert len(row3) == 1
     assert row3[0] == "INGREDIENT D"
+
+
+def test_clean_ingredients_missing_column() -> None:
+    """Test behavior when active_ingredient column is missing."""
+    df = pl.DataFrame({"other_col": [1, 2]})
+    result = clean_ingredients(df)
+
+    assert "active_ingredients_list" in result.columns
+    # Should be empty list
+    assert result["active_ingredients_list"][0].to_list() == []
+    # Original column definitely not there
+    assert "active_ingredient" not in result.columns
+    assert "other_col" in result.columns
+
+
+def test_clean_ingredients_null_values() -> None:
+    """Test behavior with null values."""
+    df = pl.DataFrame({"active_ingredient": [None, "A; B"]})
+    result = clean_ingredients(df)
+
+    # We now expect empty list for null input
+    assert result["active_ingredients_list"][0].to_list() == []
+    assert result["active_ingredients_list"][1].to_list() == ["A", "B"]
+
+
+def test_clean_ingredients_empty_strings() -> None:
+    """Test that empty strings result in empty lists, not ['']."""
+    df = pl.DataFrame({"active_ingredient": ["", "  ", "A; ;B", ";"]})
+    result = clean_ingredients(df)
+
+    # "" -> split -> [""] -> filter len>0 -> []
+    assert result["active_ingredients_list"][0].to_list() == []
+    # "  " -> split -> ["  "] -> strip -> [""] -> filter -> []
+    assert result["active_ingredients_list"][1].to_list() == []
+    # "A; ;B" -> split -> ["A", " ", "B"] -> strip -> ["A", "", "B"] -> filter -> ["A", "B"]
+    assert result["active_ingredients_list"][2].to_list() == ["A", "B"]
+    # ";" -> split -> ["", ""] -> strip -> ["", ""] -> filter -> []
+    assert result["active_ingredients_list"][3].to_list() == []
+
+
+def test_clean_form() -> None:
+    """Test clean_form Title Casing."""
+    df = pl.DataFrame({"form": ["TABLET", "solution/drops"]})
+    result = clean_form(df)
+    assert result["form"][0] == "Tablet"
+    assert result["form"][1] == "Solution/Drops"
+
+
+def test_clean_form_missing_column() -> None:
+    """Test clean_form with missing 'form' column."""
+    df = pl.DataFrame({"other": [1]})
+    result = clean_form(df)
+    assert "form" not in result.columns
+    assert "other" in result.columns
