@@ -54,7 +54,8 @@ def _read_file_from_zip(zip_content: bytes, filename: str) -> List[Dict[str, Any
             df = _read_csv_bytes(f.read())
             # Explicit cast for mypy, as clean_dataframe returns Union[DataFrame, LazyFrame]
             df_clean = cast(pl.DataFrame, clean_dataframe(df))
-            return df_clean.to_dicts()
+            # Explicit cast for the return value to satisfy strict mypy no-any-return
+            return cast(List[Dict[str, Any]], df_clean.to_dicts())
 
 
 def _get_lazy_df_from_zip(zip_content: bytes, filename: str) -> pl.LazyFrame:
