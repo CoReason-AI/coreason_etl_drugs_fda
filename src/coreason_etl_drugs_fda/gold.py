@@ -31,6 +31,7 @@ class ProductGold(BaseModel):  # type: ignore[misc]
 
     # Gold Added Fields
     sponsor_name: Optional[str] = None
+    appl_type: Optional[str] = None
     marketing_status_id: Optional[int] = None
     marketing_status_description: Optional[str] = None
     te_code: Optional[str] = None
