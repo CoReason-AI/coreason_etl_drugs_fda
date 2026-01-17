@@ -384,11 +384,7 @@ def extract_orig_dates(submissions_lazy: pl.LazyFrame) -> Dict[str, str]:
     legacy_str = "Approved prior to Jan 1, 1982"
     legacy_date = date(1982, 1, 1)
 
-    parsed_date = (
-        pl.col("submission_status_date")
-        .str.slice(0, 10)
-        .str.to_date(format="%Y-%m-%d", strict=False)
-    )
+    parsed_date = pl.col("submission_status_date").str.slice(0, 10).str.to_date(format="%Y-%m-%d", strict=False)
 
     df = df.with_columns(
         pl.when(pl.col("submission_status_date") == legacy_str)

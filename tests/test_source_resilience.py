@@ -10,7 +10,6 @@
 
 import io
 from unittest.mock import MagicMock, patch
-from zipfile import BadZipFile
 
 import pytest
 
@@ -92,6 +91,7 @@ def test_source_corrupted_zip() -> None:
     Should raise BadZipFile (and log error).
     """
     import zipfile
+
     mock_content = b"PK\x03\x04" + b"trash" * 10
 
     with patch("coreason_etl_drugs_fda.source.cffi_requests.get") as mock_get:
