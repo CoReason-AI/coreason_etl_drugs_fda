@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "coreason_etl_drugs_fda"
-version = "0.1.0"
+version = "0.2.0"
 description = "Fast, extensible Python ETL to maintain a local Drugs FDA mirror"
 authors = ["Gowtham A Rao <gowtham.rao@coreason.ai>"]
 license = "Prosperity-3.0"
@@ -31,7 +31,7 @@ build-backend = "poetry.core.masonry.api"
 
 [project]
 name = "coreason_etl_drugs_fda"
-version = "0.1.0"
+version = "0.2.0"
 description = "Fast, extensible Python ETL to maintain a local Drugs FDA mirror"
 readme = "README.md"
 requires-python = ">=3.11"
