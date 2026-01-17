@@ -33,5 +33,11 @@ WORKDIR /home/appuser/app
 # Copy the wheel from the builder stage
 COPY --from=builder /wheels /wheels
 
-# Install the application wheel
-RUN pip install --no-cache-dir /wheels/*.whl
+# Copy scripts
+COPY --chown=appuser:appuser scripts/ scripts/
+
+# Install the application wheel and patch setuptools
+RUN pip install --no-cache-dir /wheels/*.whl && \
+    pip install --no-cache-dir jaraco.context==6.1.0 && \
+    python scripts/patch_vulnerabilities.py && \
+    pip uninstall -y jaraco.context
