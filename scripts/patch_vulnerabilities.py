@@ -60,10 +60,7 @@ def patch_setuptools() -> None:
 
         # NOTE: The distribution name can be 'jaraco.context' or 'jaraco_context' depending on the wheel builder.
         # We need to check both patterns.
-        dist_patterns = [
-            f"jaraco.context-{dist.version}.dist-info",
-            f"jaraco_context-{dist.version}.dist-info"
-        ]
+        dist_patterns = [f"jaraco.context-{dist.version}.dist-info", f"jaraco_context-{dist.version}.dist-info"]
 
         # Limit traversal to avoid infinite loop (e.g. 5 levels up)
         for _ in range(5):
@@ -74,13 +71,13 @@ def patch_setuptools() -> None:
                     break
             if src_dist_info:
                 break
-            if current_path == current_path.parent: # Root reached
+            if current_path == current_path.parent:  # Root reached
                 break
             current_path = current_path.parent
 
         if not src_dist_info:
-             print(f"Error: Could not locate dist-info (checked {dist_patterns}) starting from {new_context_origin}")
-             sys.exit(1)
+            print(f"Error: Could not locate dist-info (checked {dist_patterns}) starting from {new_context_origin}")
+            sys.exit(1)
 
         print(f"Source dist-info: {src_dist_info}")
 
@@ -104,7 +101,7 @@ def patch_setuptools() -> None:
 
         print(f"Copying metadata to {dest_dist_info}...")
         if dest_dist_info.exists():
-             shutil.rmtree(dest_dist_info)
+            shutil.rmtree(dest_dist_info)
         shutil.copytree(src_dist_info, dest_dist_info)
 
     except Exception as e:
