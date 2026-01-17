@@ -10,15 +10,16 @@
 
 import tomllib
 from pathlib import Path
+
 import coreason_etl_drugs_fda
 
 
-def test_version():
+def test_version() -> None:
     """Test that the package version is correct."""
     assert coreason_etl_drugs_fda.__version__ == "0.2.0"
 
 
-def test_pyproject_version_matches_package():
+def test_pyproject_version_matches_package() -> None:
     """Test that the pyproject.toml version matches the package version."""
     pyproject_path = Path(__file__).parent.parent / "pyproject.toml"
     with open(pyproject_path, "rb") as f:
